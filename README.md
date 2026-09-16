@@ -22,7 +22,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-开发服务器默认运行在 [http://127.0.0.1:5173](http://127.0.0.1:5173)，并将 `/api/v1` 代理到 `http://localhost:8080`。先在 `../stock-flow` 中启动后端，登录、会话和数据页面才能正常工作。
+开发服务器默认运行在 [http://127.0.0.1:5173](http://127.0.0.1:5173)，并将 `/api/v1` 代理到 `http://localhost:8181`。先在 `../stock-flow` 中启动后端（`make run`，监听地址来自后端 `.env` 的 `HTTP_ADDR`），登录、会话和数据页面才能正常工作。首次部署还需要按后端 README 第 4 步执行一次 `go run ./cmd/admin init` 创建管理员口令。
 
 ## 常用命令
 
@@ -50,7 +50,20 @@ pnpm exec playwright install chromium
 | 变量                    | 默认值                  | 说明                      |
 | ----------------------- | ----------------------- | ------------------------- |
 | `VITE_API_BASE_URL`     | `/api/v1`               | 浏览器使用的 API 路径前缀 |
-| `VITE_API_PROXY_TARGET` | `http://localhost:8080` | 本地 Vite 代理目标        |
+| `VITE_API_PROXY_TARGET` | `http://localhost:8181` | 本地 Vite 代理目标        |
+
+环境文件加载顺序（Vite 原生规则，后者覆盖前者）：
+
+```text
+.env  →  .env.local  →  .env.[mode]  →  .env.[mode].local
+```
+
+- `.env` 只放**可入库的默认值**（端口、路径前缀）；个人覆盖写进 `.env.local`。
+- 两者都已被 `.gitignore` 忽略，只有 `.env.example` 会随仓库分发。
+- 变量必须带 `VITE_` 前缀才会暴露给浏览器端代码；其余变量只在 `vite.config.ts` 中可用。
+
+`VITE_API_PROXY_TARGET` 必须与后端实际监听地址一致：后端内置默认是 `:8080`，而
+`../stock-flow/.env.example` 提供的是 `:8181`。若你改过后端 `HTTP_ADDR`，这里要同步修改。
 
 生产环境推荐保持同源部署：由网关将 `/api/v1` 转发到后端，前端只使用相对路径。这样可以直接复用后端的 HttpOnly 会话 Cookie，并避免额外的 CORS 配置。
 

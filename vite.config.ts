@@ -19,7 +19,8 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         [apiPrefix]: {
-          target: env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+          // 与 ../stock-flow/.env.example 的 HTTP_ADDR=:8181 保持一致。
+          target: env.VITE_API_PROXY_TARGET || 'http://localhost:8181',
           changeOrigin: true,
         },
       },
