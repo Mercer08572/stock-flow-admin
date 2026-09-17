@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,3 +30,33 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+
+  # 契约漂移检查：确认 contracts/openapi-schema.ts 与后端契约一致。
+  #
+  # 只在 PR 与手动触发时运行：后端 main 前进后，前端未改动的提交也会失败，
+  # 错误归因且噪声大。契约同步动作天然发生在 PR 里。
+  #
+  # 需要仓库 secret CONTRACT_REPO_TOKEN（对 Mercer08572/stock-flow 的只读访问权限），
+  # 因为 stock-flow 是私有仓库，默认 GITHUB_TOKEN 无法跨仓库读取。
+  contract:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Checkout backend contract source
+        uses: actions/checkout@v4
+        with:
+          repository: Mercer08572/stock-flow
+          path: stock-flow
+          token: ${{ secrets.CONTRACT_REPO_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - name: Verify API contract snapshot
+        run: bash scripts/verify-api-contract.sh ./stock-flow

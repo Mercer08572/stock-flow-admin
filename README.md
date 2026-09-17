@@ -26,18 +26,19 @@ pnpm dev
 
 ## 常用命令
 
-| 命令                 | 用途                                    |
-| -------------------- | --------------------------------------- |
-| `pnpm dev`           | 启动开发服务器                          |
-| `pnpm build`         | 类型检查并生成生产构建                  |
-| `pnpm typecheck`     | 检查 Vue 与 TypeScript 类型             |
-| `pnpm lint`          | 运行 ESLint                             |
-| `pnpm format:check`  | 检查代码格式                            |
-| `pnpm test:run`      | 运行单元测试一次                        |
-| `pnpm test:coverage` | 生成单元测试覆盖率                      |
-| `pnpm test:e2e`      | 运行桌面与移动端端到端测试              |
-| `pnpm api:generate`  | 从后端 Swagger 2.0 文档生成接口类型快照 |
-| `pnpm check`         | 执行提交前完整校验                      |
+| 命令                 | 用途                                |
+| -------------------- | ----------------------------------- |
+| `pnpm dev`           | 启动开发服务器                      |
+| `pnpm build`         | 类型检查并生成生产构建              |
+| `pnpm typecheck`     | 检查 Vue 与 TypeScript 类型         |
+| `pnpm lint`          | 运行 ESLint                         |
+| `pnpm format:check`  | 检查代码格式                        |
+| `pnpm test:run`      | 运行单元测试一次                    |
+| `pnpm test:coverage` | 生成单元测试覆盖率                  |
+| `pnpm test:e2e`      | 运行桌面与移动端端到端测试          |
+| `pnpm api:generate`  | 从后端 Swagger 2.0 文档生成契约快照 |
+| `pnpm api:verify`    | 校验契约快照是否与后端契约一致      |
+| `pnpm check`         | 执行提交前完整校验                  |
 
 首次运行端到端测试前安装浏览器：
 
@@ -79,7 +80,9 @@ src/
   stores/          Pinia 实例与跨功能 store
   styles/          全局样式和设计令牌
   types/           共享 API/领域类型
+contracts/         后端契约快照（生成物，勿在业务代码引用）
 docs/              架构与开发约定
+scripts/           契约生成与校验脚本
 tasks/             可直接交给 coding agent 的任务说明
 tests/             Playwright 测试
 ```
@@ -91,14 +94,33 @@ tests/             Playwright 测试
 后端契约源是：
 
 ```text
-../stock-flow/openapi/swagger.json
+../stock-flow/openapi/swagger.json   ← 由后端 make swagger 从 Go handler 的 swag 注解生成
 ```
 
-后端接口变化后运行：
+前端的契约分两层，职责不同，不要混用：
+
+| 产物                                                          | 生成方式            | 作用                                                          |
+| ------------------------------------------------------------- | ------------------- | ------------------------------------------------------------- |
+| `contracts/openapi-schema.ts`                                 | `pnpm api:generate` | **契约快照**：只用于发现后端契约漂移，禁止在业务代码中 import |
+| `src/types/api.ts`、`src/api/auth.ts`、`src/api/resources.ts` | 人工维护            | **业务真源**：前端实际使用的请求/响应类型与端点声明           |
+
+为什么不能直接用契约快照当业务类型：swag 不产出 `required`，快照里所有字段都是 optional，
+直接采用会把 `entity.id` 变成 `number | undefined`。
+
+后端接口变化后的正确顺序：
 
 ```bash
+# 1. 后端：改 handler 注解后重新生成并提交契约
+cd ../stock-flow && make swagger
+
+# 2. 前端：更新快照，并人工核对业务类型是否需要同步
 pnpm api:generate
-pnpm typecheck
+git diff contracts/openapi-schema.ts
 ```
 
-生成文件用于发现契约差异，业务代码仍应通过 `src/api/` 中的小型 endpoint wrapper 暴露稳定、明确的调用边界。
+`pnpm api:verify` 会重新生成快照并与入库版本比对，不一致即失败——CI 的 `contract` job 执行同一件事。
+该 job 只在 PR 与手动触发时运行，并且需要仓库 secret `CONTRACT_REPO_TOKEN`
+（对 `Mercer08572/stock-flow` 的只读访问权限）才能检出后端仓库。
+
+> 快照一致 ≠ 类型正确：`src/types/api.ts` 中"必填/可空"的判断仍需人工核对。
+> 例如后端 `StockBalance.warehouse` 带 `omitempty`，主数据被软删除时该字段会整体消失。

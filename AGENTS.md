@@ -40,6 +40,8 @@ src/router/        路由定义和全局守卫
 src/stores/        Pinia 安装配置和真正跨功能共享的 store
 src/styles/        全局设计令牌和基础样式
 src/types/         共享 API 类型和领域类型
+contracts/         后端契约快照（生成物，只用于漂移告警）
+scripts/           契约生成与校验脚本
 tests/             Playwright 端到端测试
 tasks/             可直接供 Agent 执行的实现任务说明
 ```
@@ -60,7 +62,10 @@ tasks/             可直接供 Agent 执行的实现任务说明
 ## 变更边界
 
 - 除非任务明确同时涉及前后端项目，否则处理前端任务时不得编辑 `../stock-flow/`。
-- 生成的 API 文件应放在 `src/api/generated/` 中，禁止手动编辑。
+- 后端契约快照放在 `contracts/openapi-schema.ts`，由 `pnpm api:generate` 生成，禁止手动编辑。
+- **禁止在业务代码中 import 契约快照**：它只用于漂移告警（CI 的 `contract` job 执行 `pnpm api:verify`）。
+  业务类型在 `src/types/api.ts`，端点声明在 `src/api/*.ts`，两者人工维护并显式核对。
+- 后端契约变化时，顺序是先在后端 `make swagger` 并提交，再在前端 `pnpm api:generate` 并核对业务类型。
 - 禁止提交 `.env`、构建产物、覆盖率报告或 Playwright 报告。
 - 除非现有技术栈无法清晰解决需求，否则避免引入新依赖。
 
