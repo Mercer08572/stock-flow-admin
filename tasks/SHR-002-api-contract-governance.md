@@ -53,8 +53,9 @@ pnpm --config.store-dir=/tmp/agent-cache/pnpm-store run api:verify      # 期望
 pnpm --config.store-dir=/tmp/agent-cache/pnpm-store run api:verify      # 期望退出码 1 + diff
 ```
 
-CI 侧需要仓库 secret `CONTRACT_REPO_TOKEN`（对 `Mercer08572/stock-flow` 的只读访问），
-且要求"后端先提交契约、前端再同步"的合并顺序。
+CI 侧**不需要任何 secret**：`Mercer08572/stock-flow` 是公开仓库（已用 GitHub API 核实
+`private: false`），`actions/checkout` 用默认 `GITHUB_TOKEN`（`contents: read`）即可检出。
+仍要求"后端先提交契约、前端再同步"的合并顺序，因为 PR 中对比的是后端 `main` 上的契约。
 
 ## Acceptance Criteria
 
@@ -67,20 +68,22 @@ CI 侧需要仓库 secret `CONTRACT_REPO_TOKEN`（对 `Mercer08572/stock-flow` �
 - [x] 业务代码零改动，且无任何代码 import 契约快照
 - [x] `.prettierignore`、`eslint.config.js` 忽略清单同步为 `contracts/`
 - [x] 前端 CI 新增 `contract` job，且不在 `push` 事件上触发
-- [x] README/AGENTS.md 说明两层类型的职责、同步顺序与 `CONTRACT_REPO_TOKEN` 需求
+- [x] README/AGENTS.md 说明两层类型的职责与同步顺序，并写明无需 secret
 - [x] `pnpm check` 通过
 - [x] `pnpm test:e2e` 通过
 
 ## 验证记录（2026-09-16，本地实测）
 
 - `pnpm api:generate`：连续两次生成结果 byte-identical（幂等）。
-- `pnpm api:verify`：无漂移退出码 0；把后端 `swagger.json` 的 `/health` summary 改掉后退出码 1 并打印 diff；复原后后端工作区干净。
-- 后端目录不存在时（`bash scripts/verify-api-contract.sh /nonexistent`）报错退出 1。
+- `pnpm api:verify`：无漂移退出码 0；给后端 `swagger.json` 的 `warehouse.Reference` 加字段后
+  退出码 1 并打印 diff（只改 `summary` 不会影响生成的类型，因此不作为漂移用例）；复原后后端工作区干净。
+- 后端目录不存在时（`bash scripts/verify-api-contract.sh /nonexistent`）报错退出 1；生成器缺失时同样。
 - `pnpm check` 退出码 0（format/lint/typecheck/test/build）；`pnpm test:e2e` 4 passed。
+- 对比基准核实：远端 `stock-flow` main 的 `openapi/swagger.json` 与本地逐字节一致
+  （143740 字节、sha256 前缀 `811a8130883bd876`），因此契约校验在推送后即可工作。
 
 ## 未验证项（如实标注）
 
-- CI `contract` job 的实际运行未验证：需要推送后由 GitHub Actions 执行，并需要先配置
-  `CONTRACT_REPO_TOKEN`；本机无法验证跨仓库 checkout 与 secrets。
+- CI `contract` job 的实际运行未验证：需要推送后由 GitHub Actions 执行；本机无法运行 Actions。
 - 已知覆盖缺口：本方案只覆盖"契约文件发生变化"，覆盖不到"契约文件未变但运行时形状变化"
   （如 `omitempty` 字段在主数据软删除后整体消失），该缺口留待可空字段建模与运行时校验任务处理。

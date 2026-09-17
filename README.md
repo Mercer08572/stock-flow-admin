@@ -119,8 +119,8 @@ git diff contracts/openapi-schema.ts
 ```
 
 `pnpm api:verify` 会重新生成快照并与入库版本比对，不一致即失败——CI 的 `contract` job 执行同一件事。
-该 job 只在 PR 与手动触发时运行，并且需要仓库 secret `CONTRACT_REPO_TOKEN`
-（对 `Mercer08572/stock-flow` 的只读访问权限）才能检出后端仓库。
+该 job 只在 PR 与手动触发时运行，检出 `Mercer08572/stock-flow` 的 main 作为对比基准
+（该仓库是公开仓库，使用默认 `GITHUB_TOKEN` 即可，**不需要配置任何 secret**）。
 
 > 快照一致 ≠ 类型正确：`src/types/api.ts` 中"必填/可空"的判断仍需人工核对。
 > 例如后端 `StockBalance.warehouse` 带 `omitempty`，主数据被软删除时该字段会整体消失。
