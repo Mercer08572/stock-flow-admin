@@ -22,7 +22,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:run && pnpm build",
-    "api:generate": "swagger-typescript-api generate -p ../stock-flow/openapi/swagger.json -o src/api/generated -n schema.ts --no-client"
+    "api:generate": "bash scripts/generate-api-contract.sh",
+    "api:verify": "bash scripts/verify-api-contract.sh"
   },
   "dependencies": {
     "@lucide/vue": "^1.25.0",

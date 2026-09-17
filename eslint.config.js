@@ -5,13 +5,7 @@ import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   {
-    ignores: [
-      'coverage/**',
-      'dist/**',
-      'node_modules/**',
-      'playwright-report/**',
-      'src/api/generated/**',
-    ],
+    ignores: ['contracts/**', 'coverage/**', 'dist/**', 'node_modules/**', 'playwright-report/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

@@ -1,0 +1,23 @@
+/* eslint-disable */
+/* tslint:disable */
+// @ts-nocheck
+/*
+ * ============================================================================
+ * 后端契约快照（生成物）
+ * ============================================================================
+ *
+ * 来源：../stock-flow/openapi/swagger.json
+ *       （该文件由后端 `make swagger` 从 Go handler 的 swag 注解生成）
+ * 生成：pnpm api:generate
+ * 校验：pnpm api:verify          —— CI 的 contract job 会执行；快照与后端契约
+ *                                  不一致时失败并打印 diff
+ *
+ * 定位：本文件只用于发现"后端契约漂移"，不是前端的业务类型真源。
+ *       - 禁止手工编辑（每次生成都会被整体覆盖）
+ *       - 禁止在业务代码中 import（前端实际使用的类型在 src/types/api.ts，
+ *         端点声明在 src/api/auth.ts、src/api/resources.ts，均由人工维护）
+ *
+ * 为什么不能直接用它当业务类型：swag 不产出 required，因此这里所有字段都是
+ * optional，直接采用会把 entity.id 变成 number | undefined。
+ * ============================================================================
+ */
