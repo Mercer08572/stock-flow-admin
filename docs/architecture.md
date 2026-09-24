@@ -40,7 +40,8 @@ views/components -> feature stores and API modules -> api/client -> stock-flow A
 
 ## 数据表格
 
-- 运营数据表统一使用 AG Grid Community。
-- 列宽必须有 `minWidth`，可变文本列使用 `flex`。
+- 运营数据表统一使用 `src/components/common/DataTable.vue`（Naive UI DataTable 的适配层）。页面只声明 `DataTableColumn` 列描述，不直接调用底层表格库的列 API；更换表格实现时只改这个适配层。
+- 列宽必须有显式 `width`（同时作为可拖拽缩小的下限，必要时再声明 `minWidth`），需要对齐的数字列使用 `align: 'right'`。
+- 单元格需要格式化时使用 `render`；时间统一走 `formatDateTime`，CSV 文本走 `exportValue`。
 - 远程分页、筛选和排序参数必须显式映射到后端，不在大数据集上伪装成本地全量操作。
 - 数量字段保持后端 decimal string，不要转成 JavaScript `number` 后再参与计算。

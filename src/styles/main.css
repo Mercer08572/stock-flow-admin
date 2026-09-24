@@ -59,29 +59,9 @@ select {
   background: var(--color-surface);
 }
 
-.ag-theme-quartz {
-  --ag-accent-color: var(--color-primary);
-  --ag-background-color: #ffffff;
-  --ag-border-color: var(--color-border);
-  --ag-border-radius: 0;
-  --ag-font-family: inherit;
-  --ag-font-size: 13px;
-  --ag-header-background-color: #f7f9f8;
-  --ag-header-font-weight: 600;
-  --ag-row-hover-color: #f2f8f6;
-  width: 100%;
-  height: min(620px, calc(100vh - 230px));
-  min-height: 420px;
-}
-
 @media (max-width: 767px) {
   .page {
     gap: 16px;
     padding: 16px;
-  }
-
-  .ag-theme-quartz {
-    height: calc(100vh - 220px);
-    min-height: 360px;
   }
 }

@@ -6,8 +6,7 @@ Stock Flow 的 Vue 3 管理端，面向库存、物料、SKU、仓库和计量�
 
 - Vue 3 + TypeScript + Vite
 - Vue Router + Pinia
-- Naive UI + Lucide Icons
-- AG Grid Community
+- Naive UI（应用控件与业务表格）+ Lucide Icons
 - Vitest + Vue Test Utils
 - Playwright
 - ESLint + Prettier

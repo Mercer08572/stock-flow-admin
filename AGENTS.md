@@ -13,7 +13,6 @@ Stock-Flow Admin 是 Stock-Flow 库存管理系统的前端管理应用。
 - Vue 3
 - TypeScript
 - Naive UI
-- AG Grid
 - Pinia
 - Vue Router
 
@@ -55,7 +54,7 @@ tasks/             可直接供 Agent 执行的实现任务说明
 - 服务端数据应保持为服务端数据。若没有明确的缓存失效设计，禁止在长期存活的 Pinia store 中复制 API 记录。
 - 优先使用带类型的请求/响应模型。后端契约发生变化时，运行 `pnpm api:generate`，并有意识地核对项目实际使用的类型。
 - 业务术语应与 `../stock-flow/openapi/swagger.json` 及后端模块名称保持一致。
-- 应用控件使用 Naive UI，图标使用 Lucide，业务操作表格使用 AG Grid。
+- 应用控件使用 Naive UI，图标使用 Lucide；业务操作表格使用 Naive UI DataTable，并通过 `src/components/common/DataTable.vue` 适配层接入（列描述见 `src/components/common/data-table.ts`），页面不直接调用表格库的列 API。
 - 每个异步页面都必须包含加载、空数据、错误和重试状态。
 - 保持键盘可访问性、清晰可见的焦点状态、语义化标签，并确保响应式布局支持低至 320 px 的宽度。
 

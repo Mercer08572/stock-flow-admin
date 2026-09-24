@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { ColDef } from 'ag-grid-community'
-import { AgGridVue } from 'ag-grid-vue3'
 import { RefreshCw, RotateCcw, Search } from '@lucide/vue'
 import { onMounted, reactive, ref } from 'vue'
 
 import { getErrorMessage } from '@/api/error'
 import { resourceApi } from '@/api/resources'
+import DataTable from '@/components/common/DataTable.vue'
+import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import PageHeader from '@/components/common/PageHeader.vue'
-import '@/app/ag-grid'
 
 import type { StockBalance } from '@/types/api'
 
@@ -19,20 +18,19 @@ const rows = ref<StockBalance[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 
-const columnDefs: ColDef<StockBalance>[] = [
-  { headerName: '仓库编码', field: 'warehouse.code', minWidth: 130 },
-  { headerName: '仓库名称', field: 'warehouse.name', minWidth: 160, flex: 1 },
-  { headerName: 'SKU 编码', field: 'sku.code', minWidth: 140 },
-  { headerName: 'SKU 名称', field: 'sku.name', minWidth: 180, flex: 1 },
-  { headerName: '在库数量', field: 'on_hand_qty', minWidth: 120, type: 'rightAligned' },
-  { headerName: '预留数量', field: 'reserved_qty', minWidth: 120, type: 'rightAligned' },
-  { headerName: '可用数量', field: 'available_qty', minWidth: 120, type: 'rightAligned' },
+const columns: DataTableColumn<StockBalance>[] = [
+  { key: 'warehouse.code', title: '仓库编码', width: 130 },
+  { key: 'warehouse.name', title: '仓库名称', width: 160 },
+  { key: 'sku.code', title: 'SKU 编码', width: 140 },
+  { key: 'sku.name', title: 'SKU 名称', width: 180 },
+  { key: 'on_hand_qty', title: '在库数量', width: 120, align: 'right' },
+  { key: 'reserved_qty', title: '预留数量', width: 120, align: 'right' },
+  { key: 'available_qty', title: '可用数量', width: 120, align: 'right' },
   {
-    headerName: '更新时间',
-    field: 'updated_at',
-    minWidth: 170,
-    valueFormatter: ({ value }) =>
-      value ? new Date(value as string).toLocaleString('zh-CN') : '-',
+    key: 'updated_at',
+    title: '更新时间',
+    width: 170,
+    render: (row) => formatDateTime(row.updated_at),
   },
 ]
 
@@ -100,19 +98,14 @@ onMounted(load)
         </div>
       </NForm>
 
-      <NAlert v-if="errorMessage" type="error" :show-icon="true" class="table-error">
-        {{ errorMessage }}
-      </NAlert>
-      <AgGridVue
-        v-else
-        class="ag-theme-quartz"
-        theme="legacy"
-        :column-defs="columnDefs"
-        :row-data="rows"
+      <DataTable
+        :columns="columns"
+        :rows="rows"
         :loading="loading"
-        :animate-rows="true"
-        :default-col-def="{ sortable: true, resizable: true }"
-        :overlay-no-rows-template="'<span class=&quot;ag-overlay-no-rows-center&quot;>暂无库存数据</span>'"
+        :error="errorMessage"
+        empty-text="暂无库存数据"
+        export-file-name="库存余额"
+        @retry="load"
       />
     </section>
   </main>
@@ -134,10 +127,6 @@ onMounted(load)
 .filters__actions {
   display: flex;
   gap: 8px;
-}
-
-.table-error {
-  margin: 16px;
 }
 
 @media (max-width: 680px) {

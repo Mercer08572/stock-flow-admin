@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ColDef } from 'ag-grid-community'
-import { AgGridVue } from 'ag-grid-vue3'
 import { Plus, RefreshCw } from '@lucide/vue'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -8,8 +6,9 @@ import { useMessage } from 'naive-ui'
 
 import { getErrorMessage } from '@/api/error'
 import { resourceApi } from '@/api/resources'
+import DataTable from '@/components/common/DataTable.vue'
+import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import PageHeader from '@/components/common/PageHeader.vue'
-import '@/app/ag-grid'
 
 import type { BaseEntity } from '@/types/api'
 
@@ -19,7 +18,7 @@ type ResourceRow = BaseEntity & Record<string, unknown>
 interface ResourceConfig {
   title: string
   load: () => Promise<{ items: unknown[]; limit: number; offset: number }>
-  columns: ColDef<ResourceRow>[]
+  columns: DataTableColumn<ResourceRow>[]
   fields: FieldConfig[]
   create: (payload: Record<string, unknown>) => Promise<unknown>
 }
@@ -80,24 +79,24 @@ function createPayload(create: (body: never) => Promise<unknown>) {
   return (payload: Record<string, unknown>) => create(payload as never)
 }
 
-const commonColumns: ColDef<ResourceRow>[] = [
-  { headerName: '编码', field: 'code', minWidth: 140 },
-  { headerName: '名称', field: 'name', minWidth: 180, flex: 1 },
+const commonColumns: DataTableColumn<ResourceRow>[] = [
+  { key: 'code', title: '编码', width: 140 },
+  { key: 'name', title: '名称', width: 180 },
 ]
 
-const statusColumn: ColDef<ResourceRow> = {
-  headerName: '状态',
-  field: 'status',
-  minWidth: 100,
-  valueFormatter: ({ value }) =>
-    value === 'active' ? '正常' : value === 'inactive' ? '停用' : '-',
+const statusColumn: DataTableColumn<ResourceRow> = {
+  key: 'status',
+  title: '状态',
+  width: 100,
+  filterOptions: statusOptions,
+  render: (row) => (row.status === 'active' ? '正常' : row.status === 'inactive' ? '停用' : '-'),
 }
 
-const timeColumn: ColDef<ResourceRow> = {
-  headerName: '更新时间',
-  field: 'updated_at',
-  minWidth: 170,
-  valueFormatter: ({ value }) => (value ? new Date(value as string).toLocaleString('zh-CN') : '-'),
+const timeColumn: DataTableColumn<ResourceRow> = {
+  key: 'updated_at',
+  title: '更新时间',
+  width: 170,
+  render: (row) => formatDateTime(row.updated_at),
 }
 
 const configs: Record<ResourceKey, ResourceConfig> = {
@@ -113,9 +112,9 @@ const configs: Record<ResourceKey, ResourceConfig> = {
     create: createPayload(resourceApi.createUnit),
     columns: [
       ...commonColumns,
-      { headerName: '符号', field: 'symbol', minWidth: 100 },
-      { headerName: '类型', field: 'unit_type', minWidth: 120 },
-      { headerName: '精度', field: 'precision', minWidth: 90, type: 'rightAligned' },
+      { key: 'symbol', title: '符号', width: 100 },
+      { key: 'unit_type', title: '类型', width: 120 },
+      { key: 'precision', title: '精度', width: 90, align: 'right' },
       statusColumn,
       timeColumn,
     ],
@@ -131,8 +130,8 @@ const configs: Record<ResourceKey, ResourceConfig> = {
     create: createPayload(resourceApi.createCategory),
     columns: [
       ...commonColumns,
-      { headerName: '上级 ID', field: 'parent_id', minWidth: 110 },
-      { headerName: '备注', field: 'remark', minWidth: 180, flex: 1 },
+      { key: 'parent_id', title: '上级 ID', width: 110 },
+      { key: 'remark', title: '备注', width: 180 },
       statusColumn,
       timeColumn,
     ],
@@ -149,8 +148,8 @@ const configs: Record<ResourceKey, ResourceConfig> = {
     create: createPayload(resourceApi.createMaterial),
     columns: [
       ...commonColumns,
-      { headerName: '分类 ID', field: 'category_id', minWidth: 110 },
-      { headerName: '基础单位 ID', field: 'base_unit_id', minWidth: 130 },
+      { key: 'category_id', title: '分类 ID', width: 110 },
+      { key: 'base_unit_id', title: '基础单位 ID', width: 130 },
       statusColumn,
       timeColumn,
     ],
@@ -167,8 +166,8 @@ const configs: Record<ResourceKey, ResourceConfig> = {
     create: createPayload(resourceApi.createSku),
     columns: [
       ...commonColumns,
-      { headerName: '物料 ID', field: 'material_id', minWidth: 110 },
-      { headerName: '单位 ID', field: 'unit_id', minWidth: 110 },
+      { key: 'material_id', title: '物料 ID', width: 110 },
+      { key: 'unit_id', title: '单位 ID', width: 110 },
       statusColumn,
       timeColumn,
     ],
@@ -188,13 +187,14 @@ const configs: Record<ResourceKey, ResourceConfig> = {
     columns: [
       ...commonColumns,
       {
-        headerName: '类型',
-        field: 'type',
-        minWidth: 110,
-        valueFormatter: ({ value }) =>
-          value === 'normal' ? '普通仓' : value === 'virtual' ? '虚拟仓' : '-',
+        key: 'type',
+        title: '类型',
+        width: 110,
+        filterOptions: warehouseTypeOptions,
+        render: (row) =>
+          row.type === 'normal' ? '普通仓' : row.type === 'virtual' ? '虚拟仓' : '-',
       },
-      { headerName: '位置', field: 'location', minWidth: 160, flex: 1 },
+      { key: 'location', title: '位置', width: 160 },
       statusColumn,
       timeColumn,
     ],
@@ -281,19 +281,13 @@ watch(resource, load, { immediate: true })
     </PageHeader>
 
     <section class="panel">
-      <NAlert v-if="errorMessage" type="error" :show-icon="true" class="table-error">
-        {{ errorMessage }}
-      </NAlert>
-      <AgGridVue
-        v-else
-        class="ag-theme-quartz"
-        theme="legacy"
-        :column-defs="config.columns"
-        :row-data="rows"
+      <DataTable
+        :columns="config.columns"
+        :rows="rows"
         :loading="loading"
-        :animate-rows="true"
-        :default-col-def="{ sortable: true, resizable: true, filter: true }"
-        :overlay-no-rows-template="'<span class=&quot;ag-overlay-no-rows-center&quot;>暂无数据</span>'"
+        :error="errorMessage"
+        :export-file-name="config.title"
+        @retry="load"
       />
     </section>
 
@@ -341,10 +335,6 @@ watch(resource, load, { immediate: true })
 </template>
 
 <style scoped>
-.table-error {
-  margin: 16px;
-}
-
 .form-control {
   width: 100%;
 }
