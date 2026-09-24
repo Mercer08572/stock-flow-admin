@@ -82,8 +82,24 @@ CI 侧**不需要任何 secret**：`Mercer08572/stock-flow` 是公开仓库（�
 - 对比基准核实：远端 `stock-flow` main 的 `openapi/swagger.json` 与本地逐字节一致
   （143740 字节、sha256 前缀 `811a8130883bd876`），因此契约校验在推送后即可工作。
 
+## 复核记录（2026-09-24）
+
+- `bash scripts/verify-api-contract.sh ../stock-flow` 退出码 **0**（快照与当前后端契约一致）。
+- 对比基准仍是远端 `main`：直读
+  `https://raw.githubusercontent.com/Mercer08572/stock-flow/main/openapi/swagger.json` 得
+  sha256 `811a8130883bd876e44a8d06dcdef01d2a797ffac235329dbbecea2adb8226cc`，
+  与本地 `../stock-flow/openapi/swagger.json` **逐字节一致**；即入库快照与远端契约一致，
+  `contract` job 若在 PR 中运行应通过。
+- CI 侧状态复核：`stock-flow-admin` 的 `main` 共 6 次 workflow run，**全部由 `push` 触发**
+  （最新 run #6 `a9b6ab3` 为 success），而 `contract` job 只在 `pull_request` /
+  `workflow_dispatch` 触发，因此**至今从未真正运行过**（见下方未验证项）。
+- 业务代码零 import 契约快照：`grep -rn "openapi-schema" src/` 无命中，约束仍然成立。
+
 ## 未验证项（如实标注）
 
-- CI `contract` job 的实际运行未验证：需要推送后由 GitHub Actions 执行；本机无法运行 Actions。
+- CI `contract` job 的实际运行**仍未验证**：该 job 只在 `pull_request` 与 `workflow_dispatch`
+  触发，而仓库至今只有 push 触发的工作流；本机也无法运行 GitHub Actions。
+  2026-09-24 复核时的替代验证是「本地跑同一个脚本（退出码 0）+ 快照与远端 `main` 契约逐字节一致」，
+  它覆盖脚本逻辑与对比基准，**不覆盖**跨仓库 `actions/checkout` 这一步。
 - 已知覆盖缺口：本方案只覆盖"契约文件发生变化"，覆盖不到"契约文件未变但运行时形状变化"
   （如 `omitempty` 字段在主数据软删除后整体消失），该缺口留待可空字段建模与运行时校验任务处理。
