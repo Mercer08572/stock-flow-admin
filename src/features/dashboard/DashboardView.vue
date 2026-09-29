@@ -2,8 +2,9 @@
 import { Boxes, PackageSearch, RefreshCw, Ruler, Tags, Warehouse } from '@lucide/vue'
 import { onMounted, ref, type Component } from 'vue'
 
-import { getErrorMessage } from '@/api/error'
+import { getErrorDetail, type ErrorDetail } from '@/api/error'
 import { resourceApi } from '@/api/resources'
+import AsyncState from '@/components/common/AsyncState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 
 import type { HealthStatus } from '@/types/api'
@@ -25,17 +26,17 @@ const quickLinks: QuickLink[] = [
 ]
 
 const health = ref<HealthStatus | null>(null)
-const healthError = ref('')
+const errorDetail = ref<ErrorDetail | null>(null)
 const checkingHealth = ref(false)
 
 async function checkHealth() {
   checkingHealth.value = true
-  healthError.value = ''
+  errorDetail.value = null
   try {
     health.value = await resourceApi.health()
   } catch (error) {
     health.value = null
-    healthError.value = getErrorMessage(error)
+    errorDetail.value = getErrorDetail(error)
   } finally {
     checkingHealth.value = false
   }
@@ -55,16 +56,21 @@ onMounted(checkHealth)
       </template>
     </PageHeader>
 
-    <section class="service-strip" :class="{ 'service-strip--error': healthError }">
-      <span class="service-strip__dot" />
-      <div>
-        <strong>{{
-          health ? 'API 服务正常' : healthError ? 'API 服务不可用' : '正在检查 API 服务'
-        }}</strong>
-        <p>{{ health?.service || healthError || 'stock-flow' }}</p>
-      </div>
-      <span v-if="health" class="service-strip__status">{{ health.status }}</span>
-    </section>
+    <AsyncState
+      :loading="checkingHealth"
+      :error="errorDetail?.message ?? ''"
+      :error-trace-id="errorDetail?.traceId ?? ''"
+      @retry="checkHealth"
+    >
+      <section class="service-strip">
+        <span class="service-strip__dot" />
+        <div>
+          <strong>API 服务正常</strong>
+          <p>{{ health?.service || 'stock-flow' }}</p>
+        </div>
+        <span v-if="health" class="service-strip__status">{{ health.status }}</span>
+      </section>
+    </AsyncState>
 
     <section aria-labelledby="quick-entry-heading">
       <h2 id="quick-entry-heading" class="section-title">快捷入口</h2>
@@ -96,11 +102,6 @@ onMounted(checkHealth)
   background: #f0f8f5;
 }
 
-.service-strip--error {
-  border-color: #ead5d1;
-  background: #fbf3f1;
-}
-
 .service-strip__dot {
   width: 9px;
   height: 9px;
@@ -108,11 +109,6 @@ onMounted(checkHealth)
   border-radius: 50%;
   background: #25a57f;
   box-shadow: 0 0 0 5px rgba(37, 165, 127, 0.13);
-}
-
-.service-strip--error .service-strip__dot {
-  background: #d45a4a;
-  box-shadow: 0 0 0 5px rgba(212, 90, 74, 0.12);
 }
 
 .service-strip div {

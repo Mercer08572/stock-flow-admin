@@ -45,6 +45,14 @@ pnpm dev
 pnpm exec playwright install chromium
 ```
 
+单元测试跑在 jsdom 下，`vitest.config.ts` 通过 `setupFiles: ['./src/test/setup.ts']` 补齐
+`ResizeObserver` 与 `matchMedia`（Naive UI 的表格与 breakpoint 依赖它们），
+测试里用 `src/test/naive.ts` 注册所用组件。
+
+端到端测试**不依赖后端与数据库**：`tests/support/api-mock.ts` 用 Playwright 的 `page.route`
+拦截 `/api/v1/**` 造桩，因此 CI 可直接运行，也能精确构造 409 冲突这类分支。
+`tests/responsive.spec.ts` 显式把视口设为 320 px（Playwright 自带的 mobile-chrome 是 412 px）。
+
 ## 环境变量
 
 | 变量                    | 默认值                  | 说明                      |
@@ -79,11 +87,12 @@ src/
   stores/          Pinia 实例与跨功能 store
   styles/          全局样式和设计令牌
   types/           共享 API/领域类型
+  test/            vitest 环境补丁与测试用组件注册
 contracts/         后端契约快照（生成物，勿在业务代码引用）
 docs/              架构与开发约定
 scripts/           契约生成与校验脚本
 tasks/             可直接交给 coding agent 的任务说明
-tests/             Playwright 测试
+tests/             Playwright 测试（support/ 放 API 造桩等公共夹具）
 ```
 
 架构边界和新增功能流程见 [docs/architecture.md](docs/architecture.md)。Agent 开始工作前必须阅读 [AGENTS.md](AGENTS.md) 和对应的 `tasks/` 任务说明。

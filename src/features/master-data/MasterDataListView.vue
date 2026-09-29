@@ -1,19 +1,31 @@
 <script setup lang="ts">
 import { Plus, RefreshCw } from '@lucide/vue'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, h, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useMessage } from 'naive-ui'
+import { NButton, useDialog, useMessage } from 'naive-ui'
 
-import { getErrorMessage } from '@/api/error'
+import { getConflictMessage, getErrorDetail, type ErrorDetail } from '@/api/error'
 import { resourceApi } from '@/api/resources'
+import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import PageHeader from '@/components/common/PageHeader.vue'
+import StatusTag from '@/components/common/StatusTag.vue'
+import {
+  buildPayload,
+  createEmptyForm,
+  fillForm,
+  findMissingRequired,
+  type FieldConfig,
+  type FieldOption,
+  type FormValues,
+} from '@/features/master-data/master-data-form'
 
 import type { BaseEntity } from '@/types/api'
 
 type ResourceKey = 'units' | 'categories' | 'materials' | 'skus' | 'warehouses'
 type ResourceRow = BaseEntity & Record<string, unknown>
+type DrawerMode = 'create' | 'edit'
 
 interface ResourceConfig {
   title: string
@@ -21,34 +33,27 @@ interface ResourceConfig {
   columns: DataTableColumn<ResourceRow>[]
   fields: FieldConfig[]
   create: (payload: Record<string, unknown>) => Promise<unknown>
-}
-
-type FieldType = 'text' | 'number' | 'textarea' | 'select'
-
-interface FieldOption {
-  label: string
-  value: string
-}
-
-interface FieldConfig {
-  key: string
-  label: string
-  type: FieldType
-  required?: boolean
-  placeholder?: string
-  min?: number
-  max?: number
-  options?: FieldOption[]
+  get: (id: number) => Promise<ResourceRow>
+  update: (id: number, payload: Record<string, unknown>) => Promise<unknown>
+  remove: (id: number) => Promise<unknown>
+  /** 仅仓库提供：停用（软删除之外的独立动作） */
+  disable?: (id: number) => Promise<unknown>
 }
 
 const route = useRoute()
 const rows = ref<ResourceRow[]>([])
 const loading = ref(false)
-const errorMessage = ref('')
+const errorDetail = ref<ErrorDetail | null>(null)
 const drawerOpen = ref(false)
+const drawerMode = ref<DrawerMode>('create')
+const editingId = ref<number | null>(null)
+const loadingDetail = ref(false)
+const detailError = ref<ErrorDetail | null>(null)
 const saving = ref(false)
-const form = reactive<Record<string, string | number | null>>({})
+const form = ref<FormValues>({})
 const message = useMessage()
+const dialog = useDialog()
+const busyId = ref<number | null>(null)
 
 const statusOptions: FieldOption[] = [
   { label: '正常', value: 'active' },
@@ -79,6 +84,69 @@ function createPayload(create: (body: never) => Promise<unknown>) {
   return (payload: Record<string, unknown>) => create(payload as never)
 }
 
+/** 实体在列表页被当作通用行处理，字段读取统一走 DataTable 的取值路径 */
+function asRow<T extends BaseEntity>(promise: Promise<T>): Promise<ResourceRow> {
+  return promise as unknown as Promise<ResourceRow>
+}
+
+function updatePayload(update: (id: number, body: never) => Promise<unknown>) {
+  return (id: number, payload: Record<string, unknown>) => update(id, payload as never)
+}
+
+const actionColumn: DataTableColumn<ResourceRow> = {
+  key: 'actions',
+  title: '操作',
+  width: 176,
+  align: 'right',
+  sortable: false,
+  exportable: false,
+  render: (row) => {
+    const buttons = [
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          quaternary: true,
+          type: 'primary',
+          onClick: () => void openEdit(row),
+        },
+        { default: () => '编辑' },
+      ),
+    ]
+
+    // 停用只对仓库开放：状态已是 inactive 时禁用，避免无意义的重复请求
+    if (config.value.disable) {
+      buttons.push(
+        h(
+          NButton,
+          {
+            size: 'tiny',
+            quaternary: true,
+            disabled: row.status !== 'active',
+            onClick: () => confirmDisable(row),
+          },
+          { default: () => '停用' },
+        ),
+      )
+    }
+
+    buttons.push(
+      h(
+        NButton,
+        {
+          size: 'tiny',
+          quaternary: true,
+          type: 'error',
+          onClick: () => confirmDelete(row),
+        },
+        { default: () => '删除' },
+      ),
+    )
+
+    return h('div', { class: 'row-actions' }, buttons)
+  },
+}
+
 const commonColumns: DataTableColumn<ResourceRow>[] = [
   { key: 'code', title: '编码', width: 140 },
   { key: 'name', title: '名称', width: 180 },
@@ -89,7 +157,7 @@ const statusColumn: DataTableColumn<ResourceRow> = {
   title: '状态',
   width: 100,
   filterOptions: statusOptions,
-  render: (row) => (row.status === 'active' ? '正常' : row.status === 'inactive' ? '停用' : '-'),
+  render: (row) => h(StatusTag, { status: String(row.status ?? '') }),
 }
 
 const timeColumn: DataTableColumn<ResourceRow> = {
@@ -110,6 +178,9 @@ const configs: Record<ResourceKey, ResourceConfig> = {
       { key: 'precision', label: '精度', type: 'number', required: true, min: 0, max: 6 },
     ],
     create: createPayload(resourceApi.createUnit),
+    get: (id) => asRow(resourceApi.getUnit(id)),
+    update: updatePayload(resourceApi.updateUnit),
+    remove: (id) => resourceApi.deleteUnit(id),
     columns: [
       ...commonColumns,
       { key: 'symbol', title: '符号', width: 100 },
@@ -128,6 +199,9 @@ const configs: Record<ResourceKey, ResourceConfig> = {
       { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },
     ],
     create: createPayload(resourceApi.createCategory),
+    get: (id) => asRow(resourceApi.getCategory(id)),
+    update: updatePayload(resourceApi.updateCategory),
+    remove: (id) => resourceApi.deleteCategory(id),
     columns: [
       ...commonColumns,
       { key: 'parent_id', title: '上级 ID', width: 110 },
@@ -146,6 +220,9 @@ const configs: Record<ResourceKey, ResourceConfig> = {
       { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },
     ],
     create: createPayload(resourceApi.createMaterial),
+    get: (id) => asRow(resourceApi.getMaterial(id)),
+    update: updatePayload(resourceApi.updateMaterial),
+    remove: (id) => resourceApi.deleteMaterial(id),
     columns: [
       ...commonColumns,
       { key: 'category_id', title: '分类 ID', width: 110 },
@@ -164,6 +241,9 @@ const configs: Record<ResourceKey, ResourceConfig> = {
       { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },
     ],
     create: createPayload(resourceApi.createSku),
+    get: (id) => asRow(resourceApi.getSku(id)),
+    update: updatePayload(resourceApi.updateSku),
+    remove: (id) => resourceApi.deleteSku(id),
     columns: [
       ...commonColumns,
       { key: 'material_id', title: '物料 ID', width: 110 },
@@ -184,6 +264,10 @@ const configs: Record<ResourceKey, ResourceConfig> = {
       { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },
     ],
     create: createPayload(resourceApi.createWarehouse),
+    get: (id) => asRow(resourceApi.getWarehouse(id)),
+    update: updatePayload(resourceApi.updateWarehouse),
+    remove: (id) => resourceApi.deleteWarehouse(id),
+    disable: (id) => resourceApi.disableWarehouse(id),
     columns: [
       ...commonColumns,
       {
@@ -203,60 +287,143 @@ const configs: Record<ResourceKey, ResourceConfig> = {
 
 const resource = computed(() => route.params.resource as ResourceKey)
 const config = computed(() => configs[resource.value])
+const columns = computed(() => [...config.value.columns, actionColumn])
+const drawerTitle = computed(() =>
+  drawerMode.value === 'edit' ? `编辑${config.value.title}` : `新增${config.value.title}`,
+)
 
 async function load() {
   loading.value = true
-  errorMessage.value = ''
+  errorDetail.value = null
   try {
     const result = await config.value.load()
     rows.value = result.items as ResourceRow[]
   } catch (error) {
     rows.value = []
-    errorMessage.value = getErrorMessage(error)
+    errorDetail.value = getErrorDetail(error)
   } finally {
     loading.value = false
   }
 }
 
 function openCreate() {
-  for (const key of Object.keys(form)) delete form[key]
-  for (const field of config.value.fields) {
-    form[field.key] = field.key === 'status' ? 'active' : field.type === 'number' ? null : ''
-  }
+  drawerMode.value = 'create'
+  editingId.value = null
+  detailError.value = null
+  form.value = createEmptyForm(config.value.fields)
   drawerOpen.value = true
 }
 
-function closeCreate() {
+async function fetchDetail(id: number) {
+  detailError.value = null
+  loadingDetail.value = true
+  try {
+    form.value = fillForm(config.value.fields, await config.value.get(id))
+  } catch (error) {
+    detailError.value = getErrorDetail(error)
+  } finally {
+    loadingDetail.value = false
+  }
+}
+
+async function openEdit(row: ResourceRow) {
+  drawerMode.value = 'edit'
+  editingId.value = row.id
+  detailError.value = null
+  // 先清空再拉取：`GET /:id` 期间表单不能显示上一次编辑的残留值
+  form.value = createEmptyForm(config.value.fields)
+  drawerOpen.value = true
+  await fetchDetail(row.id)
+}
+
+function retryDetail() {
+  if (editingId.value !== null) void fetchDetail(editingId.value)
+}
+
+function closeDrawer() {
   if (!saving.value) drawerOpen.value = false
 }
 
-function isMissingRequired(field: FieldConfig) {
-  if (!field.required) return false
-  const value = form[field.key]
-  return value === null || value === undefined || value === ''
+function rowLabel(row: ResourceRow) {
+  return `${String(row.code ?? '')} ${String(row.name ?? '')}`.trim()
 }
 
-async function submitCreate() {
-  const missing = config.value.fields.find(isMissingRequired)
+/** 二次确认：只显示 ID 不足以避免误删，必须给出编码与名称 */
+function confirmDelete(row: ResourceRow) {
+  dialog.warning({
+    title: `删除${config.value.title}`,
+    content: `确认删除「${rowLabel(row)}」吗？删除后不可恢复。`,
+    positiveText: '确认删除',
+    negativeText: '取消',
+    onPositiveClick: () => deleteRow(row),
+  })
+}
+
+async function deleteRow(row: ResourceRow) {
+  // 同一时刻只允许一个删除请求，避免重复提交
+  if (busyId.value !== null) return
+
+  busyId.value = row.id
+  try {
+    await config.value.remove(row.id)
+    message.success(`${config.value.title}已删除`)
+    await load()
+  } catch (error) {
+    message.error(getConflictMessage(error))
+  } finally {
+    busyId.value = null
+  }
+}
+
+function confirmDisable(row: ResourceRow) {
+  dialog.warning({
+    title: `停用${config.value.title}`,
+    content: `确认停用「${rowLabel(row)}」吗？停用后该仓库不再用于新的库存操作。`,
+    positiveText: '确认停用',
+    negativeText: '取消',
+    onPositiveClick: () => disableRow(row),
+  })
+}
+
+async function disableRow(row: ResourceRow) {
+  if (busyId.value !== null) return
+
+  busyId.value = row.id
+  try {
+    await config.value.disable?.(row.id)
+    message.success(`${config.value.title}已停用`)
+    await load()
+  } catch (error) {
+    message.error(getConflictMessage(error))
+  } finally {
+    busyId.value = null
+  }
+}
+
+async function submit() {
+  const missing = findMissingRequired(config.value.fields, form.value)
   if (missing) {
     message.warning(`请填写${missing.label}`)
     return
   }
 
-  const payload: Record<string, unknown> = {}
-  for (const field of config.value.fields) {
-    const value = form[field.key]
-    if (value !== null && value !== undefined && value !== '') payload[field.key] = value
-  }
+  const payload = buildPayload(config.value.fields, form.value)
+  const targetId = editingId.value
+  const editing = drawerMode.value === 'edit' && targetId !== null
 
   saving.value = true
   try {
-    await config.value.create(payload)
-    message.success(`${config.value.title}已新增`)
+    if (editing) {
+      await config.value.update(targetId, payload)
+      message.success(`${config.value.title}已更新`)
+    } else {
+      await config.value.create(payload)
+      message.success(`${config.value.title}已新增`)
+    }
     drawerOpen.value = false
     await load()
   } catch (error) {
-    message.error(getErrorMessage(error))
+    message.error(getConflictMessage(error))
   } finally {
     saving.value = false
   }
@@ -282,51 +449,66 @@ watch(resource, load, { immediate: true })
 
     <section class="panel">
       <DataTable
-        :columns="config.columns"
+        :columns="columns"
         :rows="rows"
         :loading="loading"
-        :error="errorMessage"
+        :error="errorDetail?.message ?? ''"
+        :error-trace-id="errorDetail?.traceId ?? ''"
         :export-file-name="config.title"
         @retry="load"
       />
     </section>
 
     <NDrawer v-model:show="drawerOpen" :width="460" placement="right">
-      <NDrawerContent :title="`新增${config.title}`" closable>
-        <NForm :show-label="true" label-placement="top" :show-feedback="false">
-          <NFormItem v-for="field in config.fields" :key="field.key" :label="field.label">
-            <NInput
-              v-if="field.type === 'text'"
-              v-model:value="form[field.key]"
-              :placeholder="field.placeholder"
-            />
-            <NInputNumber
-              v-else-if="field.type === 'number'"
-              v-model:value="form[field.key]"
-              class="form-control"
-              :min="field.min"
-              :max="field.max"
-              :placeholder="field.placeholder"
-            />
-            <NSelect
-              v-else-if="field.type === 'select'"
-              v-model:value="form[field.key]"
-              :options="field.options"
-              :placeholder="`请选择${field.label}`"
-            />
-            <NInput
-              v-else
-              v-model:value="form[field.key]"
-              type="textarea"
-              :placeholder="field.placeholder"
-              :autosize="{ minRows: 3, maxRows: 6 }"
-            />
-          </NFormItem>
-        </NForm>
+      <NDrawerContent :title="drawerTitle" closable>
+        <AsyncState
+          :loading="loadingDetail"
+          :error="detailError?.message ?? ''"
+          :error-trace-id="detailError?.traceId ?? ''"
+          @retry="retryDetail"
+        >
+          <NForm :show-label="true" label-placement="top" :show-feedback="false">
+            <NFormItem v-for="field in config.fields" :key="field.key" :label="field.label">
+              <NInput
+                v-if="field.type === 'text'"
+                v-model:value="form[field.key]"
+                :placeholder="field.placeholder"
+              />
+              <NInputNumber
+                v-else-if="field.type === 'number'"
+                v-model:value="form[field.key]"
+                class="form-control"
+                :min="field.min"
+                :max="field.max"
+                :placeholder="field.placeholder"
+              />
+              <NSelect
+                v-else-if="field.type === 'select'"
+                v-model:value="form[field.key]"
+                :options="field.options"
+                :placeholder="`请选择${field.label}`"
+              />
+              <NInput
+                v-else
+                v-model:value="form[field.key]"
+                type="textarea"
+                :placeholder="field.placeholder"
+                :autosize="{ minRows: 3, maxRows: 6 }"
+              />
+            </NFormItem>
+          </NForm>
+        </AsyncState>
         <template #footer>
           <div class="drawer-footer">
-            <NButton :disabled="saving" @click="closeCreate">取消</NButton>
-            <NButton type="primary" :loading="saving" @click="submitCreate">保存</NButton>
+            <NButton :disabled="saving" @click="closeDrawer">取消</NButton>
+            <NButton
+              type="primary"
+              :loading="saving"
+              :disabled="loadingDetail || Boolean(detailError)"
+              @click="submit"
+            >
+              保存
+            </NButton>
           </div>
         </template>
       </NDrawerContent>
@@ -343,5 +525,11 @@ watch(resource, load, { immediate: true })
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.row-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 2px;
 }
 </style>

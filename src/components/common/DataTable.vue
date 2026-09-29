@@ -1,9 +1,8 @@
 <script setup lang="ts" generic="T">
-/* global Blob, URL, document */
-import { Download, RotateCcw, SlidersHorizontal } from '@lucide/vue'
+/* global Blob, URL, document, KeyboardEvent */
+import { Download, SlidersHorizontal } from '@lucide/vue'
 import { useBreakpoints } from '@vueuse/core'
 import {
-  NAlert,
   NButton,
   NCheckbox,
   NCheckboxGroup,
@@ -16,6 +15,7 @@ import {
 import { computed, ref, watch } from 'vue'
 
 import { formatCellText, readPath, type DataTableColumn } from './data-table'
+import AsyncState from './AsyncState.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -25,18 +25,39 @@ const props = withDefaults(
     loading?: boolean
     /** 有值时用错误提示替代表格，并提供重试入口 */
     error?: string
+    /** 后端响应封装中的 trace_id，随错误态一起展示 */
+    errorTraceId?: string
     emptyText?: string
     exportFileName?: string
+    /** 行可点击（用于打开明细），同时支持回车 / 空格触发 */
+    rowClickable?: boolean
   }>(),
   {
     loading: false,
     error: '',
+    errorTraceId: '',
     emptyText: '暂无数据',
     exportFileName: 'export',
+    rowClickable: false,
   },
 )
 
-const emit = defineEmits<{ retry: [] }>()
+const emit = defineEmits<{ retry: []; rowClick: [row: T] }>()
+
+/** 行点击交给适配层统一实现：页面不接触底层表格库的行属性 API */
+function rowProps(row: T) {
+  if (!props.rowClickable) return {}
+  return {
+    tabindex: 0,
+    class: 'data-table__row--clickable',
+    onClick: () => emit('rowClick', row),
+    onKeydown: (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      emit('rowClick', row)
+    },
+  }
+}
 
 const breakpoints = useBreakpoints({ mobile: 768 })
 const isMobile = breakpoints.smaller('mobile')
@@ -160,15 +181,13 @@ function exportCsv() {
 
 <template>
   <div class="data-table">
-    <NAlert v-if="error" type="error" :show-icon="true" class="data-table__error">
-      <div class="data-table__error-body">
-        <span>{{ error }}</span>
-        <NButton size="tiny" @click="emit('retry')">
-          <template #icon><RotateCcw :size="14" /></template>
-          重试
-        </NButton>
-      </div>
-    </NAlert>
+    <AsyncState
+      v-if="error"
+      :error="error"
+      :error-trace-id="errorTraceId"
+      class="data-table__error"
+      @retry="emit('retry')"
+    />
 
     <template v-else>
       <div class="data-table__toolbar">
@@ -212,6 +231,7 @@ function exportCsv() {
         :loading="loading"
         :max-height="maxHeight"
         :scroll-x="scrollX"
+        :row-props="rowProps"
         :theme-overrides="tableThemeOverrides"
       >
         <template #empty>
@@ -244,10 +264,12 @@ function exportCsv() {
   margin: 16px;
 }
 
-.data-table__error-body {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+:deep(.data-table__row--clickable) {
+  cursor: pointer;
+}
+
+:deep(.data-table__row--clickable:focus-visible) {
+  outline: 2px solid var(--color-primary, #18a058);
+  outline-offset: -2px;
 }
 </style>
