@@ -24,6 +24,9 @@ views/components -> feature stores and API modules -> api/client -> stock-flow A
 3. `must_change_password=true` 强制进入修改密码页。
 4. 退出登录无论请求结果如何都会清理本地内存态。
 
+强制改密与全局拦截的完整实现（状态源头、后端硬拦截、守卫逐条拆解与已知缺口）见
+[forced-password-change.md](forced-password-change.md)。
+
 ## API 错误
 
 后端返回 `{ code, message, data, trace_id, timestamp }`。传输层将失败转换为 `ApiError`，同时保留 HTTP 状态、业务码和 trace ID。UI 展示可理解的消息；诊断或日志功能可以使用 trace ID，但不要向用户泄露请求体或凭据。

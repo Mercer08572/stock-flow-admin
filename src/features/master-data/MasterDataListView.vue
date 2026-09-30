@@ -4,7 +4,7 @@ import { computed, h, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { NButton, useDialog, useMessage } from 'naive-ui'
 
-import { getConflictMessage, getErrorDetail, type ErrorDetail } from '@/api/error'
+import { getErrorDetail, getErrorMessage, type ErrorDetail } from '@/api/error'
 import { resourceApi } from '@/api/resources'
 import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -369,7 +369,7 @@ async function deleteRow(row: ResourceRow) {
     message.success(`${config.value.title}已删除`)
     await load()
   } catch (error) {
-    message.error(getConflictMessage(error))
+    message.error(getErrorMessage(error))
   } finally {
     busyId.value = null
   }
@@ -394,7 +394,7 @@ async function disableRow(row: ResourceRow) {
     message.success(`${config.value.title}已停用`)
     await load()
   } catch (error) {
-    message.error(getConflictMessage(error))
+    message.error(getErrorMessage(error))
   } finally {
     busyId.value = null
   }
@@ -423,7 +423,7 @@ async function submit() {
     drawerOpen.value = false
     await load()
   } catch (error) {
-    message.error(getConflictMessage(error))
+    message.error(getErrorMessage(error))
   } finally {
     saving.value = false
   }

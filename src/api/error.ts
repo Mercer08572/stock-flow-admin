@@ -1,13 +1,21 @@
+import { ERROR_MESSAGES } from './error-messages'
+
 export class ApiError extends Error {
   readonly status: number
   readonly code?: number
+  /** 后端业务错误码（pkg/apperr），用于选择用户可读文案 */
+  readonly errorCode?: string
   readonly traceId?: string
 
-  constructor(message: string, options: { status: number; code?: number; traceId?: string }) {
+  constructor(
+    message: string,
+    options: { status: number; code?: number; errorCode?: string; traceId?: string },
+  ) {
     super(message)
     this.name = 'ApiError'
     this.status = options.status
     if (options.code !== undefined) this.code = options.code
+    if (options.errorCode !== undefined) this.errorCode = options.errorCode
     if (options.traceId !== undefined) this.traceId = options.traceId
   }
 }
@@ -19,6 +27,8 @@ export interface ErrorDetail {
   traceId?: string
   status?: number
   code?: number
+  /** 后端业务错误码；未命中字典时 message 为后端英文原文 */
+  errorCode?: string
 }
 
 export function getErrorDetail(error: unknown): ErrorDetail {
@@ -27,6 +37,7 @@ export function getErrorDetail(error: unknown): ErrorDetail {
       message: error.message,
       status: error.status,
       ...(error.code === undefined ? {} : { code: error.code }),
+      ...(error.errorCode === undefined ? {} : { errorCode: error.errorCode }),
       ...(error.traceId === undefined ? {} : { traceId: error.traceId }),
     }
   }
@@ -36,34 +47,15 @@ export function getErrorDetail(error: unknown): ErrorDetail {
   return { message: '请求失败，请稍后重试' }
 }
 
-export function getErrorMessage(error: unknown): string {
-  return getErrorDetail(error).message
-}
-
-/** 后端 `pkg/response.CodeConflict` */
-const CODE_CONFLICT = 1009
-
 /**
- * 409 冲突的中文映射。
+ * 用户可读文案。
  *
- * 后端把领域错误直接透传为 `message`（英文原文，如 `unit code already exists`），
- * 而 P2 不允许改动后端，因此只能按「状态码 / 业务码 + 关键词」在前端做映射。
- * 未命中的情况回退到原文，不会吞掉信息。
+ * 优先按业务错误码查字典；字典未命中（后端新增了码、或错误没有业务身份）时
+ * 回退到后端 message，所以不会出现「什么都看不到」的情况。
  */
-const CONFLICT_MESSAGES: Array<{ pattern: RegExp; message: string }> = [
-  { pattern: /code already exists/i, message: '编码已存在，请更换后重试' },
-  { pattern: /referenced by inventory/i, message: '已被库存引用，无法删除' },
-  { pattern: /cannot be deleted/i, message: '该记录已被引用，无法删除' },
-]
-
-export function getConflictMessage(error: unknown): string {
+export function getErrorMessage(error: unknown): string {
   const detail = getErrorDetail(error)
-  const isConflict = detail.status === 409 || detail.code === CODE_CONFLICT
-  if (!isConflict) return detail.message
+  const mapped = detail.errorCode === undefined ? undefined : ERROR_MESSAGES[detail.errorCode]
 
-  for (const { pattern, message } of CONFLICT_MESSAGES) {
-    if (pattern.test(detail.message)) return message
-  }
-
-  return detail.message
+  return mapped ?? detail.message
 }

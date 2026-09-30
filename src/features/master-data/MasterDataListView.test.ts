@@ -140,6 +140,7 @@ describe('MasterDataListView 行操作', () => {
       new ApiError('warehouse is referenced by inventory and cannot be deleted', {
         status: 409,
         code: 1009,
+        errorCode: 'WAREHOUSE_REFERENCED_BY_INVENTORY',
         traceId: 'trace-9',
       }),
     )

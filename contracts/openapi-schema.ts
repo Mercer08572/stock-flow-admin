@@ -322,6 +322,8 @@ export interface MaterialUpdateMaterialRequest {
 export interface ResponseBody {
   code?: number;
   data?: any;
+  /** ErrorCode 是稳定的业务错误码（见 pkg/apperr）。成功响应与无业务身份的错误不出现。 */
+  error_code?: string;
   message?: string;
   timestamp?: number;
   trace_id?: string;

@@ -1,6 +1,8 @@
 export interface ApiEnvelope<T> {
   code: number
   message: string
+  /** 稳定的业务错误码（后端 pkg/apperr），成功响应不返回 */
+  error_code?: string
   data: T
   trace_id: string
   timestamp: number

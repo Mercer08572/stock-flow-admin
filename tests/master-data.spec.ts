@@ -119,14 +119,55 @@ test('requires confirmation before deleting and shows the code with the name', a
   await expect.poll(() => deleted).toEqual(['/api/v1/units/1'])
 })
 
-test('maps an inventory reference conflict to a readable Chinese message', async ({ page }) => {
+test('shows a readable Chinese message for a delete conflict', async ({ page }) => {
+  const warehouse = {
+    id: 3,
+    code: 'WH-01',
+    name: '主仓',
+    type: 'normal',
+    status: 'active',
+    created_at: '2026-09-01T10:00:00Z',
+    updated_at: '2026-09-01T10:00:00Z',
+  }
+
+  await mockApi(page, [
+    {
+      method: 'GET',
+      path: '/warehouses',
+      respond: (route) =>
+        route.fulfill({ json: ok({ items: [warehouse], limit: 100, offset: 0 }) }),
+    },
+    {
+      method: 'DELETE',
+      path: '/warehouses/:id',
+      respond: (route) =>
+        route.fulfill({
+          status: 409,
+          json: fail(
+            409,
+            1009,
+            'warehouse is referenced by inventory and cannot be deleted',
+            'WAREHOUSE_REFERENCED_BY_INVENTORY',
+          ),
+        }),
+    },
+  ])
+
+  await page.goto('/master-data/warehouses')
+  await page.getByRole('button', { name: '删除' }).click()
+  await page.locator('.n-dialog').getByRole('button', { name: '确认删除' }).click()
+
+  await expect(page.locator('.n-message')).toContainText('已被库存引用，无法删除')
+})
+
+test('falls back to the backend message for an unmapped error code', async ({ page }) => {
   await mockApi(
     page,
     unitsRoutes({
       'DELETE /units/:id': (route) =>
         route.fulfill({
           status: 409,
-          json: fail(409, 1009, 'unit is referenced by inventory and cannot be deleted'),
+          json: fail(409, 1009, 'some future conflict', 'SOME_FUTURE_CONFLICT'),
         }),
     }),
   )
@@ -135,7 +176,8 @@ test('maps an inventory reference conflict to a readable Chinese message', async
   await page.getByRole('button', { name: '删除' }).click()
   await page.locator('.n-dialog').getByRole('button', { name: '确认删除' }).click()
 
-  await expect(page.locator('.n-message')).toContainText('已被库存引用，无法删除')
+  // 未命中的码必须回退到后端原文，而不是显示空文案或「请求失败」
+  await expect(page.locator('.n-message')).toContainText('some future conflict')
 })
 
 test('disables an active warehouse only after confirmation', async ({ page }) => {

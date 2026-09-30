@@ -50,6 +50,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new ApiError(payload?.message || `请求失败 (${response.status})`, {
       status: response.status,
       ...(payload?.code === undefined ? {} : { code: payload.code }),
+      ...(payload?.error_code ? { errorCode: payload.error_code } : {}),
       ...(payload?.trace_id ? { traceId: payload.trace_id } : {}),
     })
   }

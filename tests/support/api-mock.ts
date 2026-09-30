@@ -14,8 +14,15 @@ export function ok<T>(data: T) {
   return { code: 200, message: 'success', data, trace_id: 'trace-e2e', timestamp: Date.now() }
 }
 
-export function fail(status: number, code: number, message: string) {
-  return { code, message, data: null, trace_id: 'trace-e2e', timestamp: Date.now() }
+export function fail(status: number, code: number, message: string, errorCode?: string) {
+  return {
+    code,
+    message,
+    ...(errorCode === undefined ? {} : { error_code: errorCode }),
+    data: null,
+    trace_id: 'trace-e2e',
+    timestamp: Date.now(),
+  }
 }
 
 export type StubResponder = (route: Route) => Promise<void>
