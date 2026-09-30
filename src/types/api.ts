@@ -109,6 +109,58 @@ export interface StockLayer {
 }
 
 /**
+ * 创建入参（`POST /xxx`）。
+ *
+ * 与下面的 `Update*Input` 不同：创建时可空字段**可以省略**（后端是可空指针，省略即空），
+ * 而更新是**全量替换**，可空字段必须显式传 `null`（见 `Update*Input` 的说明）。
+ */
+export interface CreateUnitInput {
+  code: string
+  name: string
+  symbol: string
+  unit_type: Unit['unit_type']
+  precision: number
+  status: EntityStatus
+}
+
+export interface CreateCategoryInput {
+  code: string
+  name: string
+  parent_id?: number
+  status: EntityStatus
+  remark?: string
+}
+
+export interface CreateMaterialInput {
+  code: string
+  name: string
+  category_id: number
+  base_unit_id: number
+  status: EntityStatus
+  remark?: string
+}
+
+export interface CreateSkuInput {
+  material_id: number
+  code: string
+  name: string
+  unit_id: number
+  status: EntityStatus
+  remark?: string
+}
+
+export interface CreateWarehouseInput {
+  code: string
+  name: string
+  type: Warehouse['type']
+  status: EntityStatus
+  location?: string
+  contact_name?: string
+  contact_phone?: string
+  remark?: string
+}
+
+/**
  * 更新入参（`PUT /xxx/:id`）。
  *
  * 后端 `PUT` 是**全量替换**：请求体字段全为非指针且无 `binding:"required"`，

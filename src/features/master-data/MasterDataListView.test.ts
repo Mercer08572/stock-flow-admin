@@ -4,7 +4,7 @@ import { h } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/api/error'
-import { resourceApi } from '@/api/resources'
+import { warehousesApi } from '@/api/warehouses'
 import MasterDataListView from '@/features/master-data/MasterDataListView.vue'
 import { naiveTestPlugin } from '@/test/naive'
 
@@ -25,13 +25,13 @@ vi.mock('naive-ui', async (importOriginal) => {
   }
 })
 
-vi.mock('@/api/resources', () => ({
-  resourceApi: {
-    warehouses: vi.fn(),
-    getWarehouse: vi.fn(),
-    updateWarehouse: vi.fn(),
-    deleteWarehouse: vi.fn(),
-    disableWarehouse: vi.fn(),
+vi.mock('@/api/warehouses', () => ({
+  warehousesApi: {
+    list: vi.fn(),
+    get: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    disable: vi.fn(),
   },
 }))
 
@@ -54,7 +54,7 @@ const inactiveWarehouse = {
 }
 
 function mockList() {
-  vi.mocked(resourceApi.warehouses).mockResolvedValue({
+  vi.mocked(warehousesApi.list).mockResolvedValue({
     items: [activeWarehouse, inactiveWarehouse],
     limit: 100,
     offset: 0,
@@ -118,25 +118,25 @@ describe('MasterDataListView 行操作', () => {
     expect(lastDialogOptions().content).toContain('WH-01')
     expect(lastDialogOptions().content).toContain('主仓')
     // 仅打开确认框不应发出请求
-    expect(resourceApi.deleteWarehouse).not.toHaveBeenCalled()
+    expect(warehousesApi.remove).not.toHaveBeenCalled()
   })
 
   it('deletes and reloads the list only after confirmation', async () => {
     const wrapper = await mountView()
-    vi.mocked(resourceApi.deleteWarehouse).mockResolvedValue(undefined)
+    vi.mocked(warehousesApi.remove).mockResolvedValue(undefined)
 
     await buttonNamed(wrapper, '删除').trigger('click')
     await lastDialogOptions().onPositiveClick()
 
-    expect(resourceApi.deleteWarehouse).toHaveBeenCalledWith(3)
+    expect(warehousesApi.remove).toHaveBeenCalledWith(3)
     expect(messageSuccess).toHaveBeenCalledWith('仓库已删除')
     // 初次加载 + 删除后刷新
-    expect(resourceApi.warehouses).toHaveBeenCalledTimes(2)
+    expect(warehousesApi.list).toHaveBeenCalledTimes(2)
   })
 
   it('shows a readable Chinese message when the warehouse is still referenced', async () => {
     const wrapper = await mountView()
-    vi.mocked(resourceApi.deleteWarehouse).mockRejectedValue(
+    vi.mocked(warehousesApi.remove).mockRejectedValue(
       new ApiError('warehouse is referenced by inventory and cannot be deleted', {
         status: 409,
         code: 1009,
@@ -153,7 +153,7 @@ describe('MasterDataListView 行操作', () => {
 
   it('disables a warehouse after confirmation', async () => {
     const wrapper = await mountView()
-    vi.mocked(resourceApi.disableWarehouse).mockResolvedValue({
+    vi.mocked(warehousesApi.disable).mockResolvedValue({
       ...activeWarehouse,
       status: 'inactive',
     })
@@ -163,7 +163,7 @@ describe('MasterDataListView 行操作', () => {
     expect(lastDialogOptions().content).toContain('WH-01')
     await lastDialogOptions().onPositiveClick()
 
-    expect(resourceApi.disableWarehouse).toHaveBeenCalledWith(3)
+    expect(warehousesApi.disable).toHaveBeenCalledWith(3)
     expect(messageSuccess).toHaveBeenCalledWith('仓库已停用')
   })
 })

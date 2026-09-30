@@ -3,7 +3,7 @@ import { Boxes, PackageSearch, RefreshCw, Ruler, Tags, Warehouse } from '@lucide
 import { onMounted, ref, type Component } from 'vue'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
-import { resourceApi } from '@/api/resources'
+import { healthApi } from '@/api/health'
 import AsyncState from '@/components/common/AsyncState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 
@@ -33,7 +33,7 @@ async function checkHealth() {
   checkingHealth.value = true
   errorDetail.value = null
   try {
-    health.value = await resourceApi.health()
+    health.value = await healthApi.get()
   } catch (error) {
     health.value = null
     errorDetail.value = getErrorDetail(error)

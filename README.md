@@ -25,19 +25,31 @@ pnpm dev
 
 ## 常用命令
 
-| 命令                 | 用途                                |
-| -------------------- | ----------------------------------- |
-| `pnpm dev`           | 启动开发服务器                      |
-| `pnpm build`         | 类型检查并生成生产构建              |
-| `pnpm typecheck`     | 检查 Vue 与 TypeScript 类型         |
-| `pnpm lint`          | 运行 ESLint                         |
-| `pnpm format:check`  | 检查代码格式                        |
-| `pnpm test:run`      | 运行单元测试一次                    |
-| `pnpm test:coverage` | 生成单元测试覆盖率                  |
-| `pnpm test:e2e`      | 运行桌面与移动端端到端测试          |
-| `pnpm api:generate`  | 从后端 Swagger 2.0 文档生成契约快照 |
-| `pnpm api:verify`    | 校验契约快照是否与后端契约一致      |
-| `pnpm check`         | 执行提交前完整校验                  |
+| 命令                 | 用途                                 |
+| -------------------- | ------------------------------------ |
+| `pnpm dev`           | 启动开发服务器                       |
+| `pnpm build`         | 类型检查并生成生产构建               |
+| `pnpm typecheck`     | 检查 Vue 与 TypeScript 类型          |
+| `pnpm lint`          | 运行 ESLint                          |
+| `pnpm format`        | 格式化代码（可传路径收窄范围，见下） |
+| `pnpm format:check`  | 检查代码格式（同样支持传路径）       |
+| `pnpm test:run`      | 运行单元测试一次                     |
+| `pnpm test:coverage` | 生成单元测试覆盖率                   |
+| `pnpm test:e2e`      | 运行桌面与移动端端到端测试           |
+| `pnpm api:generate`  | 从后端 Swagger 2.0 文档生成契约快照  |
+| `pnpm api:verify`    | 校验契约快照是否与后端契约一致       |
+| `pnpm check`         | 执行提交前完整校验                   |
+
+`pnpm format` 与 `pnpm format:check` 不带参数时作用于**整个仓库**（CI 用的就是这种形式）。
+只想处理自己改动的文件时，把路径追加在后面即可 —— 此时**只有**这些路径会被处理：
+
+```bash
+pnpm format src/api tests/master-data.spec.ts
+pnpm format:check src/api
+```
+
+> 注意不要写成 `prettier . --write <路径>`：prettier 把多个位置参数视为并集，
+> `.` 会让全仓都被处理，这也是这两个脚本由 `scripts/format.sh` 统一收口的原因。
 
 首次运行端到端测试前安装浏览器：
 
@@ -107,10 +119,10 @@ tests/             Playwright 测试（support/ 放 API 造桩等公共夹具）
 
 前端的契约分两层，职责不同，不要混用：
 
-| 产物                                                          | 生成方式            | 作用                                                          |
-| ------------------------------------------------------------- | ------------------- | ------------------------------------------------------------- |
-| `contracts/openapi-schema.ts`                                 | `pnpm api:generate` | **契约快照**：只用于发现后端契约漂移，禁止在业务代码中 import |
-| `src/types/api.ts`、`src/api/auth.ts`、`src/api/resources.ts` | 人工维护            | **业务真源**：前端实际使用的请求/响应类型与端点声明           |
+| 产物                               | 生成方式            | 作用                                                          |
+| ---------------------------------- | ------------------- | ------------------------------------------------------------- |
+| `contracts/openapi-schema.ts`      | `pnpm api:generate` | **契约快照**：只用于发现后端契约漂移，禁止在业务代码中 import |
+| `src/types/api.ts`、`src/api/*.ts` | 人工维护            | **业务真源**：前端实际使用的请求/响应类型与端点声明           |
 
 为什么不能直接用契约快照当业务类型：swag 不产出 `required`，快照里所有字段都是 optional，
 直接采用会把 `entity.id` 变成 `number | undefined`。

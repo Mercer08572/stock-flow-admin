@@ -5,7 +5,11 @@ import { useRoute } from 'vue-router'
 import { NButton, useDialog, useMessage } from 'naive-ui'
 
 import { getErrorDetail, getErrorMessage, type ErrorDetail } from '@/api/error'
-import { resourceApi } from '@/api/resources'
+import { categoriesApi } from '@/api/categories'
+import { materialsApi } from '@/api/materials'
+import { skusApi } from '@/api/skus'
+import { unitsApi } from '@/api/units'
+import { warehousesApi } from '@/api/warehouses'
 import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
@@ -170,17 +174,17 @@ const timeColumn: DataTableColumn<ResourceRow> = {
 const configs: Record<ResourceKey, ResourceConfig> = {
   units: {
     title: '计量单位',
-    load: () => resourceApi.units({ limit: 100, offset: 0 }),
+    load: () => unitsApi.list({ limit: 100, offset: 0 }),
     fields: [
       ...commonFields,
       { key: 'symbol', label: '符号', type: 'text', required: true, placeholder: '请输入单位符号' },
       { key: 'unit_type', label: '类型', type: 'select', required: true, options: unitTypeOptions },
       { key: 'precision', label: '精度', type: 'number', required: true, min: 0, max: 6 },
     ],
-    create: createPayload(resourceApi.createUnit),
-    get: (id) => asRow(resourceApi.getUnit(id)),
-    update: updatePayload(resourceApi.updateUnit),
-    remove: (id) => resourceApi.deleteUnit(id),
+    create: createPayload(unitsApi.create),
+    get: (id) => asRow(unitsApi.get(id)),
+    update: updatePayload(unitsApi.update),
+    remove: (id) => unitsApi.remove(id),
     columns: [
       ...commonColumns,
       { key: 'symbol', title: '符号', width: 100 },
@@ -192,16 +196,16 @@ const configs: Record<ResourceKey, ResourceConfig> = {
   },
   categories: {
     title: '物料分类',
-    load: () => resourceApi.categories({ limit: 100, offset: 0 }),
+    load: () => categoriesApi.list({ limit: 100, offset: 0 }),
     fields: [
       ...commonFields,
       { key: 'parent_id', label: '上级 ID', type: 'number', min: 1, placeholder: '可选' },
       { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },
     ],
-    create: createPayload(resourceApi.createCategory),
-    get: (id) => asRow(resourceApi.getCategory(id)),
-    update: updatePayload(resourceApi.updateCategory),
-    remove: (id) => resourceApi.deleteCategory(id),
+    create: createPayload(categoriesApi.create),
+    get: (id) => asRow(categoriesApi.get(id)),
+    update: updatePayload(categoriesApi.update),
+    remove: (id) => categoriesApi.remove(id),
     columns: [
       ...commonColumns,
       { key: 'parent_id', title: '上级 ID', width: 110 },
@@ -212,17 +216,17 @@ const configs: Record<ResourceKey, ResourceConfig> = {
   },
   materials: {
     title: '物料',
-    load: () => resourceApi.materials({ limit: 100, offset: 0 }),
+    load: () => materialsApi.list({ limit: 100, offset: 0 }),
     fields: [
       ...commonFields,
       { key: 'category_id', label: '分类 ID', type: 'number', required: true, min: 1 },
       { key: 'base_unit_id', label: '基础单位 ID', type: 'number', required: true, min: 1 },
       { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },
     ],
-    create: createPayload(resourceApi.createMaterial),
-    get: (id) => asRow(resourceApi.getMaterial(id)),
-    update: updatePayload(resourceApi.updateMaterial),
-    remove: (id) => resourceApi.deleteMaterial(id),
+    create: createPayload(materialsApi.create),
+    get: (id) => asRow(materialsApi.get(id)),
+    update: updatePayload(materialsApi.update),
+    remove: (id) => materialsApi.remove(id),
     columns: [
       ...commonColumns,
       { key: 'category_id', title: '分类 ID', width: 110 },
@@ -233,17 +237,17 @@ const configs: Record<ResourceKey, ResourceConfig> = {
   },
   skus: {
     title: 'SKU',
-    load: () => resourceApi.skus({ limit: 100, offset: 0 }),
+    load: () => skusApi.list({ limit: 100, offset: 0 }),
     fields: [
       ...commonFields,
       { key: 'material_id', label: '物料 ID', type: 'number', required: true, min: 1 },
       { key: 'unit_id', label: '单位 ID', type: 'number', required: true, min: 1 },
       { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },
     ],
-    create: createPayload(resourceApi.createSku),
-    get: (id) => asRow(resourceApi.getSku(id)),
-    update: updatePayload(resourceApi.updateSku),
-    remove: (id) => resourceApi.deleteSku(id),
+    create: createPayload(skusApi.create),
+    get: (id) => asRow(skusApi.get(id)),
+    update: updatePayload(skusApi.update),
+    remove: (id) => skusApi.remove(id),
     columns: [
       ...commonColumns,
       { key: 'material_id', title: '物料 ID', width: 110 },
@@ -254,7 +258,7 @@ const configs: Record<ResourceKey, ResourceConfig> = {
   },
   warehouses: {
     title: '仓库',
-    load: () => resourceApi.warehouses({ limit: 100, offset: 0 }),
+    load: () => warehousesApi.list({ limit: 100, offset: 0 }),
     fields: [
       ...commonFields,
       { key: 'type', label: '类型', type: 'select', required: true, options: warehouseTypeOptions },
@@ -263,11 +267,11 @@ const configs: Record<ResourceKey, ResourceConfig> = {
       { key: 'contact_phone', label: '联系电话', type: 'text', placeholder: '可选' },
       { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },
     ],
-    create: createPayload(resourceApi.createWarehouse),
-    get: (id) => asRow(resourceApi.getWarehouse(id)),
-    update: updatePayload(resourceApi.updateWarehouse),
-    remove: (id) => resourceApi.deleteWarehouse(id),
-    disable: (id) => resourceApi.disableWarehouse(id),
+    create: createPayload(warehousesApi.create),
+    get: (id) => asRow(warehousesApi.get(id)),
+    update: updatePayload(warehousesApi.update),
+    remove: (id) => warehousesApi.remove(id),
+    disable: (id) => warehousesApi.disable(id),
     columns: [
       ...commonColumns,
       {

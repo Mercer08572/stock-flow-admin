@@ -4,7 +4,9 @@ import { NButton } from 'naive-ui'
 import { computed, onMounted, reactive, ref } from 'vue'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
-import { resourceApi } from '@/api/resources'
+import { inventoryApi } from '@/api/inventory'
+import { skusApi } from '@/api/skus'
+import { warehousesApi } from '@/api/warehouses'
 import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
@@ -107,7 +109,7 @@ async function load() {
   loading.value = true
   errorDetail.value = null
   try {
-    const result = await resourceApi.stocks(buildStockQuery(filters, offset.value, STOCK_PAGE_SIZE))
+    const result = await inventoryApi.list(buildStockQuery(filters, offset.value, STOCK_PAGE_SIZE))
     rows.value = result.items ?? []
   } catch (error) {
     rows.value = []
@@ -127,8 +129,8 @@ async function loadOptions() {
   optionsError.value = ''
   try {
     const [warehouseResult, skuResult] = await Promise.all([
-      resourceApi.warehouses({ limit: STOCK_PAGE_SIZE, offset: 0 }),
-      resourceApi.skus({ limit: STOCK_PAGE_SIZE, offset: 0 }),
+      warehousesApi.list({ limit: STOCK_PAGE_SIZE, offset: 0 }),
+      skusApi.list({ limit: STOCK_PAGE_SIZE, offset: 0 }),
     ])
     warehouseOptions.value = toSelectOptions(warehouseResult.items ?? [])
     skuOptions.value = toSelectOptions(skuResult.items ?? [])
@@ -173,7 +175,7 @@ async function fetchDetail(warehouseId: number, skuId: number) {
   detailLoading.value = true
   detailError.value = null
   try {
-    detail.value = await resourceApi.stock(warehouseId, skuId, { include_layers: true })
+    detail.value = await inventoryApi.get(warehouseId, skuId, { include_layers: true })
   } catch (error) {
     detailError.value = getErrorDetail(error)
   } finally {
