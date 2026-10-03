@@ -35,6 +35,8 @@ export interface StubRoute {
 }
 
 function toRegExp(path: string): RegExp {
+  // `:id` 只匹配单个路径段：否则 `/materials/:id` 会连 `/materials/1/unit-conversions` 一起吃掉，
+  // 让更具体的桩永远匹配不到（表现为页面静默 404）。
   const pattern = path
     .split('/')
     .map((segment) =>

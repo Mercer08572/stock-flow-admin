@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T">
-/* global Blob, URL, document, KeyboardEvent */
+/* global Blob, URL, document, Element, EventTarget, KeyboardEvent, MouseEvent */
 import { Download, SlidersHorizontal } from '@lucide/vue'
 import { useBreakpoints } from '@vueuse/core'
 import {
@@ -44,13 +44,20 @@ const props = withDefaults(
 
 const emit = defineEmits<{ retry: []; rowClick: [row: T] }>()
 
-/** 行点击交给适配层统一实现：页面不接触底层表格库的行属性 API */
+/**
+ * 行点击交给适配层统一实现：页面不接触底层表格库的行属性 API。
+ *
+ * 点行内的按钮（编辑 / 删除 / 详情）不能让整行跳转，否则「编辑」会变成「打开详情」。
+ */
 function rowProps(row: T) {
   if (!props.rowClickable) return {}
   return {
     tabindex: 0,
     class: 'data-table__row--clickable',
-    onClick: () => emit('rowClick', row),
+    onClick: (event: MouseEvent) => {
+      if (isInteractiveTarget(event.target)) return
+      emit('rowClick', row)
+    },
     onKeydown: (event: KeyboardEvent) => {
       if (event.key !== 'Enter' && event.key !== ' ') return
       event.preventDefault()
@@ -59,12 +66,25 @@ function rowProps(row: T) {
   }
 }
 
+/** 行内按钮 / 链接等交互元素及其子元素不参与行点击 */
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  return target.closest('button, a, input, select, textarea, [role="button"]') !== null
+}
+
 const breakpoints = useBreakpoints({ mobile: 768 })
 const isMobile = breakpoints.smaller('mobile')
+/**
+ * 表格最大高度按「视口减去页头等固定高度」估算。
+ *
+ * 常驻的标签条（`--shell-tabbar-height`）也占掉了内容区的高度，必须一起减掉：
+ * 否则列表页会固定多出约一个标签条高度的页面滚动条，把分页按钮压到折叠线以下。
+ * 变量缺失时（例如表格被用在没有外壳的页面）回退为 0，算式等价于改动前的行为。
+ */
 const maxHeight = computed(() =>
   isMobile.value
-    ? 'max(320px, min(520px, calc(100vh - 240px)))'
-    : 'max(380px, min(620px, calc(100vh - 280px)))',
+    ? 'max(320px, min(520px, calc(100vh - 240px - var(--shell-tabbar-height, 0px))))'
+    : 'max(380px, min(620px, calc(100vh - 280px - var(--shell-tabbar-height, 0px))))',
 )
 
 const visibleKeys = ref<string[]>([])

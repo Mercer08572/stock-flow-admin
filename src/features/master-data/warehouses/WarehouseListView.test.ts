@@ -5,16 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/api/error'
 import { warehousesApi } from '@/api/warehouses'
-import MasterDataListView from '@/features/master-data/MasterDataListView.vue'
+import WarehouseListView from '@/features/master-data/warehouses/WarehouseListView.vue'
 import { naiveTestPlugin } from '@/test/naive'
 
 const messageError = vi.fn()
 const messageSuccess = vi.fn()
 const dialogWarning = vi.fn()
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { resource: 'warehouses' } }),
-}))
+// 共享列表模板用 useRouter 打开行详情；仓库没有详情页，这里只为满足注入
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 vi.mock('naive-ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('naive-ui')>()
@@ -66,7 +65,7 @@ async function mountView() {
   // Naive UI 的表单/表格组件要求上层存在 NConfigProvider
   const wrapper = mount(NConfigProvider, {
     global: { plugins: [naiveTestPlugin] },
-    slots: { default: () => h(MasterDataListView) },
+    slots: { default: () => h(WarehouseListView) },
   })
   // 列表为异步加载，等待一行渲染出来
   await vi.waitFor(() => expect(wrapper.findAll('tbody tr').length).toBeGreaterThan(0))
@@ -87,7 +86,7 @@ function lastDialogOptions() {
   return call[0] as { content: string; onPositiveClick: () => Promise<void> | void }
 }
 
-describe('MasterDataListView 行操作', () => {
+describe('WarehouseListView 行操作', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })

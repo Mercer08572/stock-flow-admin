@@ -48,11 +48,39 @@ export interface BaseEntity {
   updated_at: string
 }
 
+/** 与后端 `units.unit_type` 的取值一一对应，用于判断两个单位是否可公度 */
+export type UnitType =
+  'count' | 'weight' | 'length' | 'area' | 'volume' | 'package' | 'time' | 'other'
+
 export interface Unit extends BaseEntity {
   symbol: string
   precision: number
-  unit_type: 'count' | 'weight' | 'length' | 'area' | 'volume' | 'package' | 'time' | 'other'
+  unit_type: UnitType
 }
+
+/**
+ * 物料级单位换算（`/materials/:id/unit-conversions`）。
+ *
+ * `factor` 是**十进制字符串**（后端 `NUMERIC(24,10)`），前端原样透传、不做浮点运算，
+ * 否则会出现精度漂移。方向约定：`from_unit_id` 是物料的基础单位。
+ */
+export interface MaterialUnitConversion {
+  id: number
+  material_id: number
+  from_unit_id: number
+  to_unit_id: number
+  factor: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateMaterialUnitConversionInput {
+  from_unit_id: number
+  to_unit_id: number
+  factor: string
+}
+
+export type UpdateMaterialUnitConversionInput = CreateMaterialUnitConversionInput
 
 export interface MaterialCategory extends BaseEntity {
   parent_id?: number

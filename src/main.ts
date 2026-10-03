@@ -19,6 +19,8 @@ import {
   NMenu,
   NMessageProvider,
   NSelect,
+  NTab,
+  NTabs,
   NTag,
 } from 'naive-ui'
 import { createApp } from 'vue'
@@ -49,6 +51,8 @@ const naive = create({
     NMenu,
     NMessageProvider,
     NSelect,
+    NTab,
+    NTabs,
     NTag,
   ],
 })

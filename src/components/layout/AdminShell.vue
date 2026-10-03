@@ -15,10 +15,17 @@ import {
   Warehouse,
 } from '@lucide/vue'
 import { NIcon, type DropdownOption, type MenuOption, useMessage } from 'naive-ui'
-import { computed, h, ref, type Component } from 'vue'
+import { computed, h, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { getErrorMessage } from '@/api/error'
+import {
+  closeTab,
+  openTab,
+  toTab,
+  WORKBENCH_TAB,
+  type ShellTab,
+} from '@/components/layout/shell-tabs'
 import { useAuthStore } from '@/features/auth/auth.store'
 
 const route = useRoute()
@@ -55,8 +62,60 @@ const userOptions: DropdownOption[] = [
   { label: '退出登录', key: 'logout', icon: icon(LogOut) },
 ]
 
-const activeMenu = computed(() => route.path)
+/**
+ * 菜单按路径前缀匹配，取命中最长的那一项。
+ *
+ * 不能直接用 `route.path`：详情页（`/master-data/materials/12`）与列表页路径不同，
+ * 精确匹配会让左侧菜单失去高亮。菜单项本身就是路由路径，因此直接复用 `menuOptions`。
+ */
+function collectMenuKeys(options: MenuOption[]): string[] {
+  return options.flatMap((option) =>
+    option.children ? collectMenuKeys(option.children) : [String(option.key)],
+  )
+}
+
+const activeMenu = computed(() => {
+  const path = route.path
+  return (
+    collectMenuKeys(menuOptions)
+      .filter((key) => path === key || path.startsWith(`${key}/`))
+      .sort((left, right) => right.length - left.length)[0] ?? path
+  )
+})
 const pageTitle = computed(() => route.meta.title || 'Stock Flow')
+
+/**
+ * 右侧内容区的多标签工作台。
+ *
+ * 路由是唯一事实来源：菜单点击、详情跳转、浏览器前进/后退、深链都会走到这个 `watch`，
+ * 因此标签集合永远等于「工作台 + 访问过的路由」。标签状态放在本组件内即可——
+ * 登录后的路由之间 AdminShell 不会卸载，退出登录跳登录页时整体卸载，标签随之清空。
+ *
+ * `watch` 只在路由真正落地后登记：两次导航压进同一个 tick 时（中间那次页面还没渲染就被顶掉）
+ * 只登记最终路由，不给一闪而过的中间路由留下标签。
+ */
+const tabs = ref<ShellTab[]>([WORKBENCH_TAB])
+const activeTab = computed(() => route.path)
+
+watch(
+  () => route.path,
+  () => {
+    tabs.value = openTab(tabs.value, toTab({ path: route.path, meta: route.meta }))
+  },
+  { immediate: true },
+)
+
+function onTabSelect(key: string | number) {
+  const path = String(key)
+  if (path !== route.path) void router.push(path)
+}
+
+function onTabClose(key: string | number) {
+  const result = closeTab(tabs.value, String(key), route.path)
+  tabs.value = result.tabs
+  // 关闭的是当前页时跳到左邻标签；关闭其他标签不打扰当前页面
+  if (result.nextActive) void router.push(result.nextActive)
+}
 
 async function navigate(key: string | number) {
   mobileMenuOpen.value = false
@@ -119,7 +178,7 @@ async function onUserAction(key: string | number) {
       </NDrawerContent>
     </NDrawer>
 
-    <NLayout>
+    <div class="shell-main">
       <header class="topbar">
         <NButton
           v-if="isMobile"
@@ -139,21 +198,76 @@ async function onUserAction(key: string | number) {
           </NButton>
         </NDropdown>
       </header>
-      <NLayoutContent class="app-content">
+
+      <div class="tabbar">
+        <NTabs
+          :value="activeTab"
+          type="card"
+          size="small"
+          :tabs-padding="12"
+          @update:value="onTabSelect"
+          @close="onTabClose"
+        >
+          <NTab
+            v-for="tab in tabs"
+            :key="tab.key"
+            :name="tab.key"
+            :label="tab.title"
+            :closable="tab.closable"
+          />
+        </NTabs>
+      </div>
+
+      <div class="app-content">
         <RouterView />
-      </NLayoutContent>
-    </NLayout>
+      </div>
+    </div>
   </NLayout>
 </template>
 
 <style scoped>
+/*
+ * 固定外壳：顶栏与标签条常驻，内容区自己滚动。
+ *
+ * 为什么不用 `position: sticky`：naive 的 `NLayout` 会额外渲染一层
+ * `.n-layout-scroll-container`（`overflow-x: hidden`，按 CSS 规则计算成 `overflow-y: auto`），
+ * 于是 sticky 的吸附基准落在那一层而不是视口，`top: 64px` 会把标签条整体下移 64 px，
+ * 正好盖住页面头部按钮（实测「新增 SKU」「编辑物料」都点不到）。
+ * 因此这里改成「外层固定高度 + 中间层不滚动 + 内容区是唯一滚动容器」。
+ */
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
+  /* 移动端地址栏收放时 vh 偏大，dvh 更贴近真实可视高度 */
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* naive 自动生成的外层滚动容器：必须关掉它的滚动，否则它会是第二个滚动区 */
+.app-shell > :deep(.n-layout-scroll-container) {
+  overflow: hidden;
+}
+
+.shell-main {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+/* 两个 band 不参与伸缩：矮屏下绝不能被内容挤扁 */
+.topbar,
+.tabbar {
+  flex: none;
 }
 
 .app-sidebar {
-  min-height: 100vh;
   background: var(--color-sidebar);
+}
+
+/* 矮屏（不含移动端，移动端用抽屉）保证菜单自身可滚，不被裁掉 */
+.app-sidebar :deep(.n-layout-sider-scroll-container) {
+  overflow-y: auto;
 }
 
 .brand {
@@ -178,16 +292,13 @@ async function onUserAction(key: string | number) {
 }
 
 .topbar {
-  position: sticky;
-  z-index: 10;
-  top: 0;
   display: flex;
-  height: 64px;
+  height: var(--shell-topbar-height);
   align-items: center;
   gap: 12px;
   padding: 0 22px;
   border-bottom: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--color-surface);
 }
 
 .topbar h2 {
@@ -224,8 +335,42 @@ async function onUserAction(key: string | number) {
   text-overflow: ellipsis;
 }
 
+/*
+ * 内容区是全应用唯一的滚动容器。
+ * 高度由 flex 决定，因此必须 `min-height: 0`，否则内容会把容器顶高、滚不起来。
+ */
 .app-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--color-bg);
+}
+
+/*
+ * 标签条高度固定在这个变量上：`--shell-tabbar-height` 同时被
+ * `styles/main.css`（页面高度契约）和 `DataTable`（表格高度算式）引用。
+ * 窄屏不换行、由 NTabs 内部横向滚动，因此这里必须裁剪溢出，否则 320 px 会撑破页面。
+ */
+.tabbar {
+  height: var(--shell-tabbar-height);
+  overflow: hidden;
+  padding: 6px 0 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.tabbar :deep(.n-tabs-nav) {
+  padding-left: 12px;
+}
+
+.drawer-title {
+  color: #fff;
+  font-weight: 700;
+}
+
+.tabbar :deep(.n-tabs-nav) {
+  padding-left: 12px;
 }
 
 .drawer-title {

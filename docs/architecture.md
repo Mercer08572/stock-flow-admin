@@ -27,6 +27,34 @@ views/components -> feature stores and API modules -> api/client -> stock-flow A
 强制改密与全局拦截的完整实现（状态源头、后端硬拦截、守卫逐条拆解与已知缺口）见
 [forced-password-change.md](forced-password-change.md)。
 
+## 应用外壳与多标签
+
+登录后的页面统一渲染在 `src/components/layout/AdminShell.vue` 里：左侧菜单 + 顶栏 + 标签条 + 内容区。
+
+**布局契约（固定 band + 单一滚动容器）**
+
+- 外壳高度锁在 `100vh`/`100dvh`，顶栏与标签条是固定高度的 flex 项（`--shell-topbar-height`、
+  `--shell-tabbar-height`），内容区 `.app-content` 是**全应用唯一的滚动容器**，窗口本身不滚动。
+- 因此**不要**给这些 band 用 `position: sticky`：naive 的 `NLayout` 会额外渲染一层
+  `.n-layout-scroll-container`（`overflow-x: hidden` 会被计算成 `overflow-y: auto`），
+  sticky 的吸附基准会落到那一层而不是视口，导致 band 被下移、盖住页面头部按钮。
+- 页面（`.page`）不要设视口相关的最小高度：内容区受限时，确定的高度会让 flex 列容器压缩子项
+  （列表页表格被压扁且滚不动），而不是让内容区产生滚动。页面比内容区矮时露出的内容区背景与页面同色。
+- `DataTable` 的最大高度算式需要减掉 `--shell-tabbar-height`，否则列表页会固定多出一条约标签条高度的滚动条。
+- 路由的 `scrollBehavior` 重置的是 `.app-content` 的滚动位置（登录页/404 没有外壳，回退到窗口滚动）。
+
+**多标签规则**
+
+- 内容区按多标签（Tab）组织：工作台常驻第 0 位且不可关闭，其余页面按访问顺序追加、可单独关闭。
+- 标签的唯一键是 `route.path`，标签集合恒等于「工作台 + 访问过的路由」；同一路由只占一个标签，
+  重复进入（菜单、详情跳转、浏览器前进/后退、深链）都只是切回已有标签。
+- **不缓存页面状态**（未启用 `KeepAlive`）：切换标签会重新挂载视图并重新取数，
+  宁可多一次请求，也不让跨标签读到过期数据。
+- 关闭当前页的标签时激活它左侧的标签（工作台保底）；关闭非当前页的标签不改变当前页面。
+- 标签集合不持久化：刷新或深链后重建为「工作台 + 当前页」；退出登录时外壳卸载，标签随之清空。
+- 标签规则（登记、去重、关闭后激活谁）集中在 `src/components/layout/shell-tabs.ts` 的纯函数里，
+  单测见 `shell-tabs.test.ts`，端到端覆盖见 `tests/tabs.spec.ts`（含 band 固定与「短页面不多出滚动条」两条回归）。
+
 ## API 错误
 
 后端返回 `{ code, message, data, trace_id, timestamp }`。传输层将失败转换为 `ApiError`，同时保留 HTTP 状态、业务码和 trace ID。UI 展示可理解的消息；诊断或日志功能可以使用 trace ID，但不要向用户泄露请求体或凭据。

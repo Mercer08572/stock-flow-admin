@@ -52,10 +52,14 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 物料单位换算
   MATERIAL_CONVERSION_NOT_FOUND: '单位换算不存在',
   MATERIAL_CONVERSION_DUPLICATE: '该单位换算已存在',
-  MATERIAL_CONVERSION_REVERSE_DUPLICATE: '已存在方向相反的换算关系',
+  MATERIAL_CONVERSION_REVERSE_DUPLICATE:
+    '已存在方向相反的换算关系（换算方向固定为基础单位 → 另一单位）',
   MATERIAL_CONVERSION_MATERIAL_INVALID: '所选物料不存在',
   MATERIAL_CONVERSION_FROM_UNIT_INVALID: '所选来源单位不存在',
   MATERIAL_CONVERSION_TO_UNIT_INVALID: '所选目标单位不存在',
+  MATERIAL_CONVERSION_UNIT_TYPE_MISMATCH:
+    '两个单位类型不可互算，请选择同类型单位（包装与计数除外）',
+  MATERIAL_CONVERSION_BASE_UNIT_REQUIRED: '换算必须有一端是物料的基础单位',
 
   // 库存
   INVENTORY_STOCK_NOT_FOUND: '库存记录不存在',

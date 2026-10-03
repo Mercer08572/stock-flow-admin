@@ -19,6 +19,10 @@
   --color-text: #17201d;
   --color-text-muted: #67736f;
   --color-sidebar: #18211f;
+
+  /* 外壳 band 高度：唯一来源，AdminShell 与 DataTable 的高度算式都引用这里 */
+  --shell-topbar-height: 64px;
+  --shell-tabbar-height: 46px;
 }
 
 * {
@@ -44,9 +48,16 @@ select {
   font: inherit;
 }
 
+/*
+ * 页面高度交给内容自己决定。
+ *
+ * 这里**不要**写 `min-height: 100%`（或 `calc(100vh - 64px)` 之类的视口算式）：
+ * 外壳内容区是唯一的滚动容器，页面若拿到一个确定的高度，作为 flex 列容器的页面
+ * 会把子项压缩来适配（列表页的表格会被压扁且滚不动），而不是撑高内容区产生滚动。
+ * 页面比内容区矮时，露出来的是内容区背景，与页面背景同色，视觉无差异。
+ */
 .page {
   display: flex;
-  min-height: calc(100vh - 64px);
   flex-direction: column;
   gap: 20px;
   padding: 24px;
