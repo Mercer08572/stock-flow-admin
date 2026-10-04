@@ -55,6 +55,62 @@ views/components -> feature stores and API modules -> api/client -> stock-flow A
 - 标签规则（登记、去重、关闭后激活谁）集中在 `src/components/layout/shell-tabs.ts` 的纯函数里，
   单测见 `shell-tabs.test.ts`，端到端覆盖见 `tests/tabs.spec.ts`（含 band 固定与「短页面不多出滚动条」两条回归）。
 
+**侧栏折叠**
+
+- 侧栏（`NLayoutSider` + `NMenu`）可收窄为图标栏：`collapse-mode="width"` 让宽度真的从 232 → 64；
+  Naive 的默认值 `transform` 是把侧栏移出屏幕，内容区不重排，不是这里要的效果。
+- 折叠后**名称怎么还能被看到，交给 Naive 内建行为**：叶子项由 `MenuOption` 的 `NTooltip` 承担、
+  分组由 `Submenu` 的 `NDropdown`（hover 触发）承担，两者都只在 `collapsed` 时启用。
+  名称元素仍留在 DOM 里（被设成 `opacity: 0`），因此**不要**用可见性判断名称是否隐藏，断言请看 `opacity`。
+- 折叠开关**钉在侧栏底部**（三段式：品牌固定 / 菜单滚动 / 开关固定），是外壳自绘的
+  **原生 `<button class="sider-toggle">`**，带 `aria-label` 与 `:focus-visible` 焦点环。
+  不用 `NButton`：它内部有「`1em` 图标尺寸 + 内容层居中 + 图标层固定宽度」三层规则，
+  外部很难把图标精确对齐到菜单图标那一列；也不用 Naive 自带的 `show-trigger="bar"`：
+  那个裸 `div` 没有 `role`/`tabindex`/`aria-label`，键盘不可达。
+- 开关的取值全部来自对当前主题的实测（不靠猜）：行高 42px、图标 20px 落在 x=22..42
+  （中心 32，与菜单图标同列）、文字起点 x=52（与菜单项文字同列）、非选中态图标与文字同为 `#bbb`、
+  悬浮同为 `#fff`、悬浮不改背景；折叠态图标 24px 并与菜单图标一起居中在 64px 栏内。
+  端到端断言直接比对「开关 vs 相邻非选中菜单项」的颜色/尺寸/中心与文字起点，防止样式漂移。
+- 底部固定依赖 sider 的**原生滚动容器**（`.n-layout-sider-scroll-container`）：
+  外壳把它设为不滚动的 flex 列，滚动交给菜单那一块。一旦改回 `:native-scrollbar="false"`，
+  内容会被包进 `.n-scrollbar`，这些规则全部失效、开关会被菜单顶走。
+- 侧栏只做**宽度过渡**，因此开关内部不能有「瞬时翻转的布局」，否则过渡期间会抖动。三条不变量
+  （端到端用例 `宽度过渡期间：图标不跳动、文字不竖排、不冒横向滚动条` 逐帧采样锁定）：0. 尺寸不变的元素（品牌 logo、图标盒）必须 `flex: none`。默认的 `flex-shrink: 1`
+  会把它们压扁：折叠栏只有 64px，而品牌区一行需要 `15 + 34 + 11 + 文字 + 20`，
+  实测品牌标记被压成 20×34（正方形变形）。与之相对，**文字层**要保留 `overflow: hidden`
+  （溢出非 visible 时自动最小尺寸才降为 0，文字才能先被压到 0 而不是去挤 logo）。
+  1. 图标位置恒定——固定 24px 图标盒 + 固定 `padding-left: 20px`，图标中心恒在 x=32；
+     不要用 `justify-content: center` 之类的状态切换，否则图标会先跳到中间再缩回左边。
+     品牌区同理，但它**需要**随折叠把标记从「与菜单图标左对齐」移到「栏内居中」（20 → 15），
+     所以改成过渡一个**连续量** `padding-left`，并且用与 sider 宽度过渡完全相同的
+     时长与缓动（`var(--shell-collapse-duration)` + `var(--n-bezier)`）——
+     两边不同步的话仍会被看成跳动。实测单帧位移从 14.4px 降到 0.9px，半程进度差 0.00~0.01。
+     品牌文字同样要**常驻 DOM**（只做 `opacity` 过渡）：`display: none` 会把文字在过渡中途抽走。
+  2. 文字不换行——`white-space: nowrap` + `overflow: hidden`，并且文字**常驻 DOM**、
+     只做 `opacity` 过渡（用 `v-if` 会在过渡中途插入/移除文本，表现为文字被挤成竖排）。
+  3. 时长只有一个来源——与折叠相关的四条过渡（品牌区位移、品牌标题淡出、开关配色、开关文字淡出）
+     全部引用 `--shell-collapse-duration`（定义在 `.app-shell` 上）。它必须与 Naive 侧栏内部的
+     `min/max-width` 过渡一致：Naive 没有导出任何时长变量（源码里就是写死的 `.3s var(--n-bezier)`），
+     只能写同一个字面量；缓动则复用它的 `--n-bezier`。两边一旦不同，就会出现
+     「栏宽还在动、标记已经走完」的错位感——`tests/sidebar.spec.ts` 会逐帧比对两者的进度（容差 ±20%），改错即失败。
+  4. 不出现横向滚动条——**必须让子项能被压窄**：Naive 给 sider 内容区
+     （`.n-layout-sider-scroll-container`）打了**内联** `overflow: auto`，内联样式优先于样式表，
+     所以在那里写 `overflow: hidden` 是挡不住的；而列方向 flex 子项的 `min-width` 默认是 `auto`
+     （= min-content，文字 + 图标宽度），容器还窄时子项拒绝收缩 → 溢出 → 滚动条一闪而过。
+     修法：给品牌区 / 菜单 / 底部区都加 `min-width: 0` 并各自 `overflow: hidden`；
+     菜单再显式写 `overflow: hidden auto`（只写 `overflow-y: auto` 会让 `overflow-x` 被算成 auto）。
+     注意这个坑**只在展开方向出现**：收起时 collapsed 类立刻生效，菜单项自己先收成 64px，
+     min-content 随之变小，所以不溢出——「只闪一个方向」正是它的特征。
+
+> 改这段样式时留意：同名规则的**重复定义**很隐蔽——同优先级时后出现的规则生效，
+> 若旧规则没删干净，新写的过渡会被它悄悄覆盖（表现为「改了没生效」）。
+> 本项目已有端到端用例逐帧采样断言这些不变量（含品牌标记恒为 34×34 的「不得变形」断言），
+> 改完跑 `pnpm test:e2e tests/sidebar.spec.ts` 即可确认。
+
+- 折叠状态存在 `localStorage`（键 `stock-flow-admin:sidebar-collapsed`，只存一个布尔偏好、不涉及凭据）；
+  读写与异常兜底在 `sidebar-collapsed.ts`（含单测），端到端覆盖见 `tests/sidebar.spec.ts`。
+- 移动端不适用：侧栏整体由抽屉代替，抽屉内始终显示名称。
+
 ## API 错误
 
 后端返回 `{ code, message, data, trace_id, timestamp }`。传输层将失败转换为 `ApiError`，同时保留 HTTP 状态、业务码和 trace ID。UI 展示可理解的消息；诊断或日志功能可以使用 trace ID，但不要向用户泄露请求体或凭据。
