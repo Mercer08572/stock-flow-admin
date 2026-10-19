@@ -21,6 +21,7 @@ import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import StatusTag from '@/components/common/StatusTag.vue'
+import { useShellTabTitle } from '@/components/layout/shell-tab-title'
 import EntityFormDrawer from '@/features/master-data/components/EntityFormDrawer.vue'
 import { useEntityList } from '@/features/master-data/lib/entity-list'
 import { useReferenceOptions } from '@/features/master-data/lib/reference-labels'
@@ -85,6 +86,14 @@ const skuListMayBeTruncated = computed(() => rows.value.length >= SKU_PAGE_SIZE)
 const materialTitle = computed(() =>
   material.value ? `物料 ${material.value.code} - ${material.value.name}` : '物料详情',
 )
+
+/**
+ * 数据到达后把标签文案换成「物料 编码 - 名称」。
+ *
+ * 详情路由的 meta 标题固定是「物料详情」，打开多个物料详情后标签条上无法区分；
+ * 物料还没取到（或取失败）时传 null，标签保持 meta 标题。
+ */
+useShellTabTitle(() => (material.value ? materialTitle.value : null))
 
 const editFields = computed(() =>
   material.value ? materialEditFields(material.value.base_unit_id) : [],

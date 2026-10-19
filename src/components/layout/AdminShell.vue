@@ -17,13 +17,15 @@ import {
   Warehouse,
 } from '@lucide/vue'
 import { NIcon, type DropdownOption, type MenuOption, useMessage } from 'naive-ui'
-import { computed, h, ref, watch, type Component } from 'vue'
+import { computed, h, provide, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { getErrorMessage } from '@/api/error'
+import { SHELL_TAB_TITLE_KEY } from '@/components/layout/shell-tab-title'
 import {
   closeTab,
   openTab,
+  retitleTab,
   toTab,
   WORKBENCH_TAB,
   type ShellTab,
@@ -127,6 +129,16 @@ watch(
   },
   { immediate: true },
 )
+
+/**
+ * 页面数据到达后自报的标签标题（如「物料 M-001 - 钢板」）。
+ *
+ * 详情页的 meta 标题是静态的，打开多个详情标签会全部叫「物料详情」；页面通过
+ * `useShellTabTitle` 把真实标题回写到这里。只更新已存在的标签：数据晚于关闭到达时忽略。
+ */
+provide(SHELL_TAB_TITLE_KEY, (key: string, title: string) => {
+  tabs.value = retitleTab(tabs.value, key, title)
+})
 
 function onTabSelect(key: string | number) {
   const path = String(key)
@@ -257,14 +269,23 @@ async function onUserAction(key: string | number) {
             v-for="tab in tabs"
             :key="tab.key"
             :name="tab.key"
-            :label="tab.title"
+            :label="tab.customTitle ?? tab.title"
             :closable="tab.closable"
           />
         </NTabs>
       </div>
 
       <div class="app-content">
-        <RouterView />
+        <!--
+          内容视图必须以 `route.path` 为 key。
+
+          两个物料详情（`/master-data/materials/1` 与 `/master-data/materials/2`）命中的是
+          **同一条路由记录**，vue-router 在只有 `params` 变化时会**复用组件实例**，不重跑
+          `setup` / `onMounted`。详情页在 setup 里读一次 `route.params.id`，实例被复用时这个 id
+          和已加载的数据都停在上一个物料上——表现为「点回前一个物料的标签，看到的却是后一个
+          物料的内容」。标签键本来就等于 path，这里让视图实例与标签键对齐：参数一变就重建。
+        -->
+        <RouterView :key="route.path" />
       </div>
     </div>
   </NLayout>
