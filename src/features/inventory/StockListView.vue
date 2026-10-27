@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RefreshCw, RotateCcw, Search } from '@lucide/vue'
+import { useBreakpoints } from '@vueuse/core'
 import { NButton, NPagination } from 'naive-ui'
 import { computed, onMounted, reactive, ref } from 'vue'
 
@@ -45,6 +46,9 @@ const detail = ref<StockBalance | null>(null)
 /** 保留当前明细对应的行，重试时不需要依赖已加载成功的 detail */
 const detailTarget = ref<{ warehouseId: number; skuId: number } | null>(null)
 
+const breakpoints = useBreakpoints({ mobile: 768 })
+const isMobile = breakpoints.smaller('mobile')
+
 const columns: DataTableColumn<StockBalance>[] = [
   {
     key: 'warehouse.code',
@@ -83,6 +87,7 @@ const columns: DataTableColumn<StockBalance>[] = [
 ]
 
 const layerColumns: DataTableColumn<StockLayer>[] = [
+  { key: 'id', title: '库存层ID', width: 90, align: 'right' },
   {
     key: 'batch_id',
     title: '批次',
@@ -96,9 +101,9 @@ const layerColumns: DataTableColumn<StockLayer>[] = [
     width: 170,
     render: (row) => formatDateTime(row.received_at),
   },
-  { key: 'on_hand_qty', title: '在库数量', width: 120, align: 'right' },
-  { key: 'reserved_qty', title: '预留数量', width: 120, align: 'right' },
-  { key: 'available_qty', title: '可用数量', width: 120, align: 'right' },
+  { key: 'on_hand_qty', title: '在库数量', width: 110, align: 'right' },
+  { key: 'reserved_qty', title: '预留数量', width: 110, align: 'right' },
+  { key: 'available_qty', title: '可用数量', width: 110, align: 'right' },
 ]
 
 const page = computed(() => Math.floor(offset.value / STOCK_PAGE_SIZE) + 1)
@@ -281,7 +286,7 @@ onMounted(async () => {
       </footer>
     </section>
 
-    <NDrawer v-model:show="detailOpen" :width="640" placement="right">
+    <NDrawer v-model:show="detailOpen" :width="isMobile ? '100%' : 760" placement="right">
       <NDrawerContent closable>
         <template #header>
           <div class="drawer-header">
