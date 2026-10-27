@@ -44,12 +44,13 @@ function referenceRoutes(): StubRoute[] {
       method: 'GET',
       path: '/warehouses',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [warehouse], limit: 100, offset: 0 }) }),
+        route.fulfill({ json: ok({ items: [warehouse], total: 1, limit: 100, offset: 0 }) }),
     },
     {
       method: 'GET',
       path: '/skus',
-      respond: (route) => route.fulfill({ json: ok({ items: [sku], limit: 100, offset: 0 }) }),
+      respond: (route) =>
+        route.fulfill({ json: ok({ items: [sku], total: 1, limit: 100, offset: 0 }) }),
     },
   ]
 }
@@ -61,7 +62,7 @@ test('filters stock with searchable selects instead of raw ids', async ({ page }
       method: 'GET',
       path: '/inventory/stocks',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [balance(100)], limit: 100, offset: 0 }) }),
+        route.fulfill({ json: ok({ items: [balance(100)], total: 1, limit: 100, offset: 0 }) }),
     },
   ])
 
@@ -75,7 +76,7 @@ test('filters stock with searchable selects instead of raw ids', async ({ page }
   ).toBeVisible()
 })
 
-test('pages forward with the offset cursor', async ({ page }) => {
+test('shows the total and jumps pages by number and quick jumper', async ({ page }) => {
   const offsets: string[] = []
 
   /** 限定到「在库数量」列，避免与「可用数量」出现同值 */
@@ -90,9 +91,8 @@ test('pages forward with the offset cursor', async ({ page }) => {
       respond: async (route) => {
         const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
         offsets.push(String(offset))
-        // 契约没有 total，「还有下一页」只能按「本页是否满页」推断，所以要给满 100 条
         const items = Array.from({ length: 100 }, (_, index) => balance(offset + index + 11))
-        await route.fulfill({ json: ok({ items, limit: 100, offset }) })
+        await route.fulfill({ json: ok({ items, total: 250, limit: 100, offset }) })
       },
     },
   ])
@@ -100,19 +100,21 @@ test('pages forward with the offset cursor', async ({ page }) => {
   await page.goto('/inventory/stocks')
 
   await expect(onHandCell('11.000000')).toBeVisible()
-  await expect(page.getByRole('button', { name: '上一页' })).toBeDisabled()
+  await expect(page.getByText('共 250 条 · 第 1 / 3 页')).toBeVisible()
+  await expect(page.locator('.n-pagination')).toBeVisible()
 
-  await page.getByRole('button', { name: '下一页' }).click()
-
+  // 页码跳转
+  await page.locator('.n-pagination-item').filter({ hasText: /^2$/ }).click()
   await expect(onHandCell('111.000000')).toBeVisible()
   await expect(onHandCell('11.000000')).toBeHidden()
   expect(offsets).toEqual(['0', '100'])
 
-  await expect(page.getByRole('button', { name: '上一页' })).toBeEnabled()
-  await page.getByRole('button', { name: '上一页' }).click()
-
-  await expect(onHandCell('11.000000')).toBeVisible()
-  expect(offsets).toEqual(['0', '100', '0'])
+  // quick jumper 跳页
+  const jumpInput = page.locator('.n-pagination-quick-jumper input')
+  await jumpInput.fill('3')
+  await jumpInput.press('Enter')
+  await expect(onHandCell('211.000000')).toBeVisible()
+  expect(offsets).toEqual(['0', '100', '200'])
 })
 
 test('opens the layer detail drawer with include_layers', async ({ page }) => {
@@ -124,7 +126,7 @@ test('opens the layer detail drawer with include_layers', async ({ page }) => {
       method: 'GET',
       path: '/inventory/stocks',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [balance(100)], limit: 100, offset: 0 }) }),
+        route.fulfill({ json: ok({ items: [balance(100)], total: 1, limit: 100, offset: 0 }) }),
     },
     {
       method: 'GET',
@@ -147,6 +149,41 @@ test('opens the layer detail drawer with include_layers', async ({ page }) => {
   expect(detailQueries).toEqual(['?include_layers=true'])
 })
 
+test('refreshes the layer drawer without closing it', async ({ page }) => {
+  const detailQueries: string[] = []
+
+  await mockApi(page, [
+    ...referenceRoutes(),
+    {
+      method: 'GET',
+      path: '/inventory/stocks',
+      respond: (route) =>
+        route.fulfill({ json: ok({ items: [balance(100)], total: 1, limit: 100, offset: 0 }) }),
+    },
+    {
+      method: 'GET',
+      path: '/inventory/stocks/:warehouseId/:skuId',
+      respond: async (route) => {
+        detailQueries.push(new URL(route.request().url()).search)
+        await route.fulfill({ json: ok({ ...balance(100), layers: [layer] }) })
+      },
+    },
+  ])
+
+  await page.goto('/inventory/stocks')
+  await page.locator('tbody tr').first().click()
+
+  const drawer = page.locator('.n-drawer')
+  await expect(drawer).toBeVisible()
+  expect(detailQueries).toHaveLength(1)
+
+  await drawer.getByRole('button', { name: '刷新' }).click()
+
+  await expect.poll(() => detailQueries.length).toBe(2)
+  expect(detailQueries).toEqual(['?include_layers=true', '?include_layers=true'])
+  await expect(drawer).toBeVisible()
+})
+
 test('shows an explicit empty state when the balance has no layers', async ({ page }) => {
   await mockApi(page, [
     ...referenceRoutes(),
@@ -154,7 +191,7 @@ test('shows an explicit empty state when the balance has no layers', async ({ pa
       method: 'GET',
       path: '/inventory/stocks',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [balance(100)], limit: 100, offset: 0 }) }),
+        route.fulfill({ json: ok({ items: [balance(100)], total: 1, limit: 100, offset: 0 }) }),
     },
     {
       method: 'GET',
@@ -179,6 +216,7 @@ test('falls back to the id when the warehouse reference is missing', async ({ pa
         route.fulfill({
           json: ok({
             items: [balance(100, { withWarehouse: false })],
+            total: 1,
             limit: 100,
             offset: 0,
           }),

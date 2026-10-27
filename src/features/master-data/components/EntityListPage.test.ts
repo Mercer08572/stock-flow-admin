@@ -35,7 +35,7 @@ const material: Material = {
 
 const config: ResourceConfig<Material> = {
   title: '物料',
-  load: () => Promise.resolve({ items: [material], limit: 100, offset: 0 }),
+  load: (offset) => Promise.resolve({ items: [material], total: 1, limit: 100, offset }),
   fields: [
     { key: 'code', label: '编码', type: 'text', required: true },
     { key: 'name', label: '名称', type: 'text', required: true },

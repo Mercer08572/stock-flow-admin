@@ -8,7 +8,7 @@
 
 import { Plus, RefreshCw } from '@lucide/vue'
 import { computed } from 'vue'
-import { NButton } from 'naive-ui'
+import { NButton, NPagination } from 'naive-ui'
 import { useRouter } from 'vue-router'
 
 import DataTable from '@/components/common/DataTable.vue'
@@ -42,7 +42,12 @@ const {
   drawerOpen,
   drawerMode,
   editingId,
+  total,
+  page,
+  pageCount,
+  pageSize,
   reload,
+  goToPage,
   openCreate,
   openEdit,
   onSaved,
@@ -50,7 +55,7 @@ const {
   confirmDisable,
 } = useEntityList<BaseEntity>({
   title: props.config.title,
-  load: () => props.config.load(),
+  load: (offset) => props.config.load(offset),
   remove: (id) => props.config.remove(id),
   disable: props.config.disable,
   disableHint: props.disableHint,
@@ -82,7 +87,10 @@ void reload()
 
 <template>
   <main class="page">
-    <PageHeader :title="config.title" :description="`当前结果 ${rows.length} 条`">
+    <PageHeader
+      :title="config.title"
+      :description="`共 ${total} 条 · 第 ${page} / ${pageCount} 页`"
+    >
       <template #actions>
         <NButton type="primary" @click="openCreate">
           <template #icon><Plus :size="16" /></template>
@@ -107,6 +115,20 @@ void reload()
         @row-click="openDetail"
         @retry="reload"
       />
+
+      <footer v-if="total > 0" class="pager">
+        <span class="pager__hint">共 {{ total }} 条，每页 {{ pageSize }} 条</span>
+        <NPagination
+          :page="page"
+          :item-count="total"
+          :page-size="pageSize"
+          :disabled="loading"
+          show-quick-jumper
+          @update:page="goToPage"
+        >
+          <template #goto>跳至</template>
+        </NPagination>
+      </footer>
     </section>
 
     <EntityFormDrawer
@@ -128,5 +150,35 @@ void reload()
   display: inline-flex;
   justify-content: flex-end;
   gap: 2px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.pager__hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.pager :deep(.n-pagination) {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 680px) {
+  .pager {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pager :deep(.n-pagination) {
+    justify-content: flex-start;
+  }
 }
 </style>

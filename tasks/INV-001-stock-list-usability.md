@@ -2,6 +2,9 @@
 
 Status: Done
 
+> 2026-10-27 更新：`ListResult` 已统一增加 `total`，库存余额页改为显示总数并支持页码跳转。
+> 本文中 D9「不补 total」以及「不显示总条数 / 只能上一页下一页」的约束已失效，仅保留为历史记录。
+
 ## Context
 
 `src/features/inventory/StockListView.vue` 当前有三个可用性硬伤：

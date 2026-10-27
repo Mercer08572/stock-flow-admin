@@ -59,22 +59,26 @@ const routes: StubRoute[] = [
   {
     method: 'GET',
     path: '/units',
-    respond: (route) => route.fulfill({ json: ok({ items: unitRows, limit: 100, offset: 0 }) }),
+    respond: (route) =>
+      route.fulfill({
+        json: ok({ items: unitRows, total: unitRows.length, limit: 100, offset: 0 }),
+      }),
   },
   {
     method: 'GET',
     path: '/warehouses',
-    respond: (route) => route.fulfill({ json: ok({ items: [warehouse], limit: 100, offset: 0 }) }),
+    respond: (route) =>
+      route.fulfill({ json: ok({ items: [warehouse], total: 1, limit: 100, offset: 0 }) }),
   },
   {
     method: 'GET',
     path: '/skus',
-    respond: (route) => route.fulfill({ json: ok({ items: [], limit: 100, offset: 0 }) }),
+    respond: (route) => route.fulfill({ json: ok({ items: [], total: 0, limit: 100, offset: 0 }) }),
   },
   {
     method: 'GET',
     path: '/inventory/stocks',
-    respond: (route) => route.fulfill({ json: ok({ items: [], limit: 100, offset: 0 }) }),
+    respond: (route) => route.fulfill({ json: ok({ items: [], total: 0, limit: 100, offset: 0 }) }),
   },
 ]
 

@@ -12,7 +12,7 @@
 import { ChevronLeft, Pencil, Plus, RefreshCw } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NButton } from 'naive-ui'
+import { NButton, NPagination } from 'naive-ui'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
 import { materialsApi } from '@/api/materials'
@@ -33,7 +33,7 @@ import { skuDetailColumns, skuFieldsForMaterial } from '@/features/master-data/s
 
 import type { Material, SKU } from '@/types/api'
 
-/** 后端 `MaxListLimit`：子表一次取满，超出部分提示去独立的 SKU 列表查 */
+/** 后端 `MaxListLimit`：子表按页加载，页大小不超过 100 */
 const SKU_PAGE_SIZE = 100
 
 const route = useRoute()
@@ -59,14 +59,19 @@ const {
   drawerOpen,
   drawerMode,
   editingId,
+  total,
+  page,
+  pageSize,
   reload,
+  goToPage,
   openCreate,
   openEdit,
   onSaved,
   confirmDelete,
 } = useEntityList<SKU>({
   title: 'SKU',
-  load: () => skusApi.list({ material_id: materialId, limit: SKU_PAGE_SIZE, offset: 0 }),
+  load: (offset) => skusApi.list({ material_id: materialId, limit: SKU_PAGE_SIZE, offset }),
+  pageSize: SKU_PAGE_SIZE,
   remove: skusApi.remove,
 })
 
@@ -79,9 +84,6 @@ const columns = computed(() => [
   ...skuDetailColumns(label),
   actionColumn<SKU>({ onEdit: openEdit, onDelete: confirmDelete }),
 ])
-
-/** 满页说明可能还有更多，后端没有 total，只能按「本页是否取满」提示 */
-const skuListMayBeTruncated = computed(() => rows.value.length >= SKU_PAGE_SIZE)
 
 const materialTitle = computed(() =>
   material.value ? `物料 ${material.value.code} - ${material.value.name}` : '物料详情',
@@ -199,12 +201,9 @@ onMounted(() => {
 
     <section class="panel">
       <div class="panel-head">
-        <h2>SKU（{{ rows.length }}）</h2>
+        <h2>SKU（共 {{ total }} 条）</h2>
         <p>单位必须与基础单位可公度且已建立换算；库存按 SKU 分别记录，不做跨 SKU 自动合并。</p>
       </div>
-      <p v-if="skuListMayBeTruncated" class="panel-hint">
-        子表最多显示 {{ SKU_PAGE_SIZE }} 条，更多请到 SKU 列表按物料筛选。
-      </p>
       <DataTable
         :columns="columns"
         :rows="rows"
@@ -215,6 +214,19 @@ onMounted(() => {
         export-file-name="SKU"
         @retry="reload"
       />
+      <footer v-if="total > 0" class="pager">
+        <span class="pager__hint">共 {{ total }} 条，每页 {{ pageSize }} 条</span>
+        <NPagination
+          :page="page"
+          :item-count="total"
+          :page-size="pageSize"
+          :disabled="loading"
+          show-quick-jumper
+          @update:page="goToPage"
+        >
+          <template #goto>跳至</template>
+        </NPagination>
+      </footer>
     </section>
 
     <EntityFormDrawer
@@ -304,10 +316,33 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.panel-hint {
-  margin: 0;
-  padding: 0 16px 10px;
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.pager__hint {
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.pager :deep(.n-pagination) {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 680px) {
+  .pager {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pager :deep(.n-pagination) {
+    justify-content: flex-start;
+  }
 }
 </style>

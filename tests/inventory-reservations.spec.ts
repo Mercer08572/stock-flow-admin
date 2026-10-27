@@ -49,12 +49,13 @@ function filterRoutes(): StubRoute[] {
       method: 'GET',
       path: '/warehouses',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [warehouse], limit: 100, offset: 0 }) }),
+        route.fulfill({ json: ok({ items: [warehouse], total: 1, limit: 100, offset: 0 }) }),
     },
     {
       method: 'GET',
       path: '/skus',
-      respond: (route) => route.fulfill({ json: ok({ items: [sku], limit: 100, offset: 0 }) }),
+      respond: (route) =>
+        route.fulfill({ json: ok({ items: [sku], total: 1, limit: 100, offset: 0 }) }),
     },
   ]
 }
@@ -63,7 +64,8 @@ function listRoute(items = [reservation]): StubRoute {
   return {
     method: 'GET',
     path: '/inventory/reservations',
-    respond: (route) => route.fulfill({ json: ok({ items, limit: 100, offset: 0 }) }),
+    respond: (route) =>
+      route.fulfill({ json: ok({ items, total: items.length, limit: 100, offset: 0 }) }),
   }
 }
 
@@ -113,7 +115,9 @@ test.describe('库存占用（桌面）', () => {
         path: '/inventory/reservations',
         respond: async (route) => {
           queries.push(new URL(route.request().url()).search)
-          await route.fulfill({ json: ok({ items: [reservation], limit: 100, offset: 0 }) })
+          await route.fulfill({
+            json: ok({ items: [reservation], total: 1, limit: 100, offset: 0 }),
+          })
         },
       },
     ])
@@ -128,6 +132,33 @@ test.describe('库存占用（桌面）', () => {
 
     await expect.poll(() => queries.at(-1)).toContain('status=closed')
     expect(queries.at(-1)).toContain('offset=0')
+  })
+
+  test('shows the total and jumps to another page', async ({ page }) => {
+    const offsets: string[] = []
+    await mockApi(page, [
+      ...filterRoutes(),
+      {
+        method: 'GET',
+        path: '/inventory/reservations',
+        respond: async (route) => {
+          const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+          offsets.push(String(offset))
+          const items = Array.from({ length: 100 }, (_, index) => ({
+            ...reservation,
+            id: offset + index + 1,
+          }))
+          await route.fulfill({ json: ok({ items, total: 250, limit: 100, offset }) })
+        },
+      },
+    ])
+
+    await page.goto('/inventory/reservations')
+
+    await expect(page.getByText('共 250 条 · 第 1 / 3 页')).toBeVisible()
+    await page.locator('.n-pagination-item').filter({ hasText: /^2$/ }).click()
+
+    await expect.poll(() => offsets.at(-1)).toBe('100')
   })
 
   test('opens the allocation drawer for a reservation', async ({ page }) => {
@@ -167,6 +198,37 @@ test.describe('库存占用（桌面）', () => {
     expect(detailPaths).toEqual(['/api/v1/inventory/reservations/2'])
   })
 
+  test('refreshes the reservation drawer without closing it', async ({ page }) => {
+    const detailPaths: string[] = []
+    await mockApi(page, [
+      ...referenceRoutes(),
+      {
+        method: 'GET',
+        path: '/inventory/reservations/:id',
+        respond: async (route) => {
+          detailPaths.push(new URL(route.request().url()).pathname)
+          await route.fulfill({ json: ok({ ...reservation, items: [reservationItem] }) })
+        },
+      },
+    ])
+
+    await page.goto('/inventory/reservations')
+    await page.locator('tbody tr').first().click()
+
+    const drawer = page.locator('.n-drawer')
+    await expect(drawer).toBeVisible()
+    expect(detailPaths).toHaveLength(1)
+
+    await drawer.getByRole('button', { name: '刷新' }).click()
+
+    await expect.poll(() => detailPaths.length).toBe(2)
+    expect(detailPaths).toEqual([
+      '/api/v1/inventory/reservations/2',
+      '/api/v1/inventory/reservations/2',
+    ])
+    await expect(drawer).toBeVisible()
+  })
+
   test('shows an explicit empty state', async ({ page }) => {
     await mockApi(page, referenceRoutes([]))
 
@@ -186,7 +248,7 @@ test.describe('库存占用（320 px）', () => {
 
     await expect(page.locator('.filters .n-select').first()).toBeVisible()
     await expect(page.getByRole('button', { name: '查询' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '上一页' })).toBeVisible()
+    await expect(page.locator('.n-pagination')).toBeVisible()
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

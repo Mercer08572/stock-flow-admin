@@ -2,8 +2,8 @@
  * 库存占用列表的纯逻辑：查询参数组装、状态/关闭原因标签、来源格式化。
  *
  * 契约约束（已在后端核对）：
- * 1. `GET /inventory/reservations` 只有 `warehouse_id` / `sku_id` / `status` / `limit` / `offset`，
- *    没有 `total`，翻页只能靠「本页是否满页」推断。
+ * 1. `GET /inventory/reservations` 接受 `warehouse_id` / `sku_id` / `status` / `limit` / `offset`；
+ *    响应额外返回同条件下的 `total`，用于显示总数与页码跳转。
  * 2. 后端 `MaxListLimit = 100`，页大小不能超过它。
  * 3. `Reservation.warehouse` / `sku` 是 `*Reference + omitempty`，引用缺失时退化为 ID。
  */

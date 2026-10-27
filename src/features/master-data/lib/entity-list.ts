@@ -9,20 +9,23 @@
  * 复制 5 份必然漂移，因此集中在这里。
  */
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
 
 import { getErrorDetail, getErrorMessage, type ErrorDetail } from '@/api/error'
 import { clearReferenceOptions } from '@/features/master-data/lib/reference-cache'
 import { clearUnitCatalog } from '@/features/master-data/lib/unit-catalog'
 
-import type { BaseEntity } from '@/types/api'
+import type { BaseEntity, ListResult } from '@/types/api'
 
 export interface UseEntityListOptions<T extends BaseEntity> {
   /** 资源名，用于提示文案（如「物料已删除」） */
   title: string
-  load: () => Promise<{ items: T[] }>
+  /** `offset` 为 0 基；响应必须带 `total` 用于分页 */
+  load: (offset: number) => Promise<ListResult<T>>
   remove: (id: number) => Promise<unknown>
+  /** 每页条数，缺省取后端 `MaxListLimit` */
+  pageSize?: number
   /** 仅仓库提供；缺省时 `confirmDisable` 不做任何事，页面也不渲染「停用」 */
   disable?: ((id: number) => Promise<unknown>) | undefined
   /** 停用确认框里的补充说明；仅仓库传入 */
@@ -38,25 +41,55 @@ export function useEntityList<T extends BaseEntity>(options: UseEntityListOption
   const drawerOpen = ref(false)
   const drawerMode = ref<'create' | 'edit'>('create')
   const editingId = ref<number | null>(null)
+  const offset = ref(0)
+  const total = ref(0)
+  const pageSize = options.pageSize ?? 100
+  const page = computed(() => Math.floor(offset.value / pageSize) + 1)
+  const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
   const message = useMessage()
   const dialog = useDialog()
+
+  /** 只加载当前页；分页切换不清理引用缓存，避免每翻一页都让下拉重新请求 */
+  async function loadCurrentPage() {
+    loading.value = true
+    errorDetail.value = null
+    try {
+      const result = await options.load(offset.value)
+      total.value = result.total
+      rows.value = result.items
+
+      // 删除当前页最后一条后可能越界：回退到最后一个有数据的页
+      if (rows.value.length === 0 && offset.value > 0) {
+        const lastOffset =
+          result.total > 0 ? Math.max(0, Math.ceil(result.total / pageSize) - 1) * pageSize : 0
+        if (offset.value > lastOffset) {
+          offset.value = lastOffset
+          await loadCurrentPage()
+        }
+      }
+    } catch (error) {
+      total.value = 0
+      rows.value = []
+      errorDetail.value = getErrorDetail(error)
+    } finally {
+      loading.value = false
+    }
+  }
 
   async function reload() {
     // 列表刷新可能紧跟在一次写操作之后（新建了分类/单位/物料），
     // 因此顺带作废引用选项与单位目录缓存，避免下拉里看不到刚建的主数据。
     clearReferenceOptions()
     clearUnitCatalog()
-    loading.value = true
-    errorDetail.value = null
-    try {
-      const result = await options.load()
-      rows.value = result.items
-    } catch (error) {
-      rows.value = []
-      errorDetail.value = getErrorDetail(error)
-    } finally {
-      loading.value = false
-    }
+    await loadCurrentPage()
+  }
+
+  async function goToPage(targetPage: number) {
+    if (loading.value) return
+    const nextOffset = Math.max(0, (targetPage - 1) * pageSize)
+    if (nextOffset === offset.value) return
+    offset.value = nextOffset
+    await loadCurrentPage()
   }
 
   function openCreate() {
@@ -138,7 +171,12 @@ export function useEntityList<T extends BaseEntity>(options: UseEntityListOption
     drawerOpen,
     drawerMode,
     editingId,
+    total,
+    page,
+    pageCount,
+    pageSize,
     reload,
+    goToPage,
     openCreate,
     openEdit,
     onSaved,

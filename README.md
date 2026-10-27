@@ -127,6 +127,9 @@ tests/             Playwright 测试（support/ 放 API 造桩等公共夹具）
 为什么不能直接用契约快照当业务类型：swag 不产出 `required`，快照里所有字段都是 optional，
 直接采用会把 `entity.id` 变成 `number | undefined`。
 
+所有列表响应统一为 `{ items, total, limit, offset }`。`total` 使用与 `items` 相同的过滤条件，
+不受 `limit` / `offset` 影响；前端据此显示总条数并支持页码跳转。
+
 后端接口变化后的正确顺序：
 
 ```bash

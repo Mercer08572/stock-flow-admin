@@ -19,7 +19,8 @@ function unitsRoutes(overrides: Partial<Record<string, StubRoute['respond']>> = 
     {
       method: 'GET',
       path: '/units',
-      respond: (route) => route.fulfill({ json: ok({ items: [kgUnit], limit: 100, offset: 0 }) }),
+      respond: (route) =>
+        route.fulfill({ json: ok({ items: [kgUnit], total: 1, limit: 100, offset: 0 }) }),
     },
     { method: 'GET', path: '/units/:id', respond: (route) => route.fulfill({ json: ok(kgUnit) }) },
     {
@@ -40,6 +41,44 @@ function unitsRoutes(overrides: Partial<Record<string, StubRoute['respond']>> = 
     return override ? { ...route, respond: override } : route
   })
 }
+
+test('shows the total and paginates a master data list', async ({ page }) => {
+  const offsets: string[] = []
+
+  await mockApi(page, [
+    {
+      method: 'GET',
+      path: '/units',
+      respond: async (route) => {
+        const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+        offsets.push(String(offset))
+        const items = Array.from({ length: 100 }, (_, index) => ({
+          ...kgUnit,
+          id: offset + index + 1,
+          code: `KG-${offset + index + 1}`,
+        }))
+        await route.fulfill({ json: ok({ items, total: 250, limit: 100, offset }) })
+      },
+    },
+  ])
+
+  await page.goto('/master-data/units')
+
+  await expect(page.getByText('共 250 条 · 第 1 / 3 页')).toBeVisible()
+  await page.locator('.n-pagination-item').filter({ hasText: /^2$/ }).click()
+
+  await expect(page.getByText('共 250 条 · 第 2 / 3 页')).toBeVisible()
+  expect(offsets).toEqual(['0', '100'])
+})
+
+test('shows the pagination bar even when the list has one page', async ({ page }) => {
+  await mockApi(page, unitsRoutes())
+
+  await page.goto('/master-data/units')
+
+  await expect(page.getByText('共 1 条 · 第 1 / 1 页')).toBeVisible()
+  await expect(page.locator('.n-pagination')).toBeVisible()
+})
 
 test('edits a unit with every field prefilled and submitted', async ({ page }) => {
   const putBodies: Array<Record<string, unknown>> = []
@@ -135,7 +174,7 @@ test('shows a readable Chinese message for a delete conflict', async ({ page }) 
       method: 'GET',
       path: '/warehouses',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [warehouse], limit: 100, offset: 0 }) }),
+        route.fulfill({ json: ok({ items: [warehouse], total: 1, limit: 100, offset: 0 }) }),
     },
     {
       method: 'DELETE',
@@ -197,7 +236,7 @@ test('disables an active warehouse only after confirmation', async ({ page }) =>
       method: 'GET',
       path: '/warehouses',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [warehouse], limit: 100, offset: 0 }) }),
+        route.fulfill({ json: ok({ items: [warehouse], total: 1, limit: 100, offset: 0 }) }),
     },
     {
       method: 'PUT',

@@ -34,6 +34,7 @@ async function stubLists(page: Parameters<typeof mockApi>[0]) {
                 updated_at: '2026-09-01T10:00:00Z',
               },
             ],
+            total: 1,
             limit: 100,
             offset: 0,
           }),
@@ -43,12 +44,13 @@ async function stubLists(page: Parameters<typeof mockApi>[0]) {
       method: 'GET',
       path: '/warehouses',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [warehouse], limit: 100, offset: 0 }) }),
+        route.fulfill({ json: ok({ items: [warehouse], total: 1, limit: 100, offset: 0 }) }),
     },
     {
       method: 'GET',
       path: '/skus',
-      respond: (route) => route.fulfill({ json: ok({ items: [sku], limit: 100, offset: 0 }) }),
+      respond: (route) =>
+        route.fulfill({ json: ok({ items: [sku], total: 1, limit: 100, offset: 0 }) }),
     },
     {
       method: 'GET',
@@ -68,6 +70,7 @@ async function stubLists(page: Parameters<typeof mockApi>[0]) {
                 updated_at: '2026-09-01T10:00:00Z',
               },
             ],
+            total: 250,
             limit: 100,
             offset: 0,
           }),
@@ -110,8 +113,7 @@ test.describe('320 px', () => {
 
     await expect(page.locator('.filters .n-select').first()).toBeVisible()
     await expect(page.getByRole('button', { name: '查询' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '上一页' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '下一页' })).toBeVisible()
+    await expect(page.locator('.n-pagination')).toBeVisible()
 
     await expectNoPageOverflow(page)
   })

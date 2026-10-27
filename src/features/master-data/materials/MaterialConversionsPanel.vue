@@ -54,6 +54,7 @@ const message = useMessage()
 const dialog = useDialog()
 
 const conversions = ref<MaterialUnitConversion[]>([])
+const total = ref(0)
 const loading = ref(false)
 const errorDetail = ref<ErrorDetail | null>(null)
 
@@ -138,8 +139,10 @@ async function load() {
       limit: CONVERSION_PAGE_SIZE,
       offset: 0,
     })
+    total.value = result.total
     conversions.value = result.items
   } catch (error) {
+    total.value = 0
     conversions.value = []
     errorDetail.value = getErrorDetail(error)
   } finally {
@@ -242,7 +245,7 @@ watch(() => [props.materialId, props.baseUnitId] as const, load)
   <section class="panel">
     <div class="panel-head">
       <div class="panel-head__copy">
-        <h2>单位换算</h2>
+        <h2>单位换算（共 {{ total }} 条）</h2>
         <p>
           以基础单位 <strong>{{ baseUnitText }}</strong> 为一端；只有建立换算的单位才能用于该物料的
           SKU。

@@ -33,7 +33,7 @@ const columns: readonly DataTableColumn<Unit>[] = [
 
 export const unitConfig: ResourceConfig<Unit> = {
   title: '计量单位',
-  load: () => unitsApi.list({ limit: 100, offset: 0 }),
+  load: (offset) => unitsApi.list({ limit: 100, offset }),
   columns,
   fields: [
     ...commonFields,

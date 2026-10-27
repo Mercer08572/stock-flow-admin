@@ -32,7 +32,7 @@ const columns: readonly DataTableColumn<MaterialCategory>[] = [
 
 export const categoryConfig: ResourceConfig<MaterialCategory> = {
   title: '物料分类',
-  load: () => categoriesApi.list({ limit: 100, offset: 0 }),
+  load: (offset) => categoriesApi.list({ limit: 100, offset }),
   columns,
   fields: [
     ...commonFields,

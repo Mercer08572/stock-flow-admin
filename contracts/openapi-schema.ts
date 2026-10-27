@@ -100,6 +100,7 @@ export interface AuthAPIAppListResult {
   items?: AuthAPIApp[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface AuthAPISecret {
@@ -191,6 +192,7 @@ export interface CategoryCategoryListResult {
   items?: CategoryCategory[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface CategoryCreateCategoryRequest {
@@ -220,6 +222,7 @@ export interface ConversionListResult {
   items?: ConversionMaterialUnitConversion[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface ConversionMaterialUnitConversion {
@@ -248,6 +251,7 @@ export interface InventoryLayerListResult {
   items?: InventoryStockLayer[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface InventoryMovement {
@@ -274,6 +278,7 @@ export interface InventoryMovementListResult {
   items?: InventoryMovement[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface InventoryMovementRef {
@@ -332,6 +337,7 @@ export interface InventoryReservationListResult {
   items?: InventoryReservation[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface InventoryReservationSnapshot {
@@ -376,6 +382,7 @@ export interface InventoryStockListResult {
   items?: InventoryStockBalance[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface InventoryStockOperationResult {
@@ -453,6 +460,7 @@ export interface MaterialListResult {
   items?: MaterialMaterial[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface MaterialMaterial {
@@ -499,6 +507,7 @@ export interface SkuListResult {
   items?: SkuSKU[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface SkuReference {
@@ -554,6 +563,7 @@ export interface UnitUnitListResult {
   items?: UnitUnit[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface UnitUpdateUnitRequest {
@@ -580,6 +590,7 @@ export interface WarehouseListResult {
   items?: WarehouseWarehouse[];
   limit?: number;
   offset?: number;
+  total?: number;
 }
 
 export interface WarehouseReference {

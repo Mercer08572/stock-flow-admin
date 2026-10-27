@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildStockQuery,
-  hasNextPage,
   referenceCode,
   referenceName,
   toSelectOptions,
@@ -33,15 +32,6 @@ describe('buildStockQuery', () => {
     // 后端 MaxListLimit = 100，超过会被静默截断
     expect(STOCK_PAGE_SIZE).toBe(100)
     expect(buildStockQuery({ warehouseId: null, skuId: null }, 0).limit).toBe(100)
-  })
-})
-
-describe('hasNextPage', () => {
-  it('assumes more pages only when the page is full', () => {
-    // 契约没有 total，只能按「是否满页」推断
-    expect(hasNextPage(100, 100)).toBe(true)
-    expect(hasNextPage(99, 100)).toBe(false)
-    expect(hasNextPage(0, 100)).toBe(false)
   })
 })
 

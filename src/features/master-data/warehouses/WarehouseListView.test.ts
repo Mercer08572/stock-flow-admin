@@ -55,6 +55,7 @@ const inactiveWarehouse = {
 function mockList() {
   vi.mocked(warehousesApi.list).mockResolvedValue({
     items: [activeWarehouse, inactiveWarehouse],
+    total: 2,
     limit: 100,
     offset: 0,
   })

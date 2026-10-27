@@ -107,13 +107,17 @@ function detailRoutes(onSkuList: (url: URL) => void): StubRoute[] {
       method: 'GET',
       path: '/materials/:id/unit-conversions',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [gramConversion], limit: 100, offset: 0 }) }),
+        route.fulfill({
+          json: ok({ items: [gramConversion], total: 1, limit: 100, offset: 0 }),
+        }),
     },
     {
       method: 'GET',
       path: '/materials',
       respond: (route) =>
-        route.fulfill({ json: ok({ items: [material, otherMaterial], limit: 100, offset: 0 }) }),
+        route.fulfill({
+          json: ok({ items: [material, otherMaterial], total: 2, limit: 100, offset: 0 }),
+        }),
     },
     {
       method: 'GET',
@@ -153,6 +157,7 @@ function detailRoutes(onSkuList: (url: URL) => void): StubRoute[] {
                 updated_at: now,
               },
             ],
+            total: 1,
             limit: 100,
             offset: 0,
           }),
@@ -163,7 +168,7 @@ function detailRoutes(onSkuList: (url: URL) => void): StubRoute[] {
       path: '/units',
       respond: (route) =>
         route.fulfill({
-          json: ok({ items: [kgUnit, gramUnit, poundUnit], limit: 100, offset: 0 }),
+          json: ok({ items: [kgUnit, gramUnit, poundUnit], total: 3, limit: 100, offset: 0 }),
         }),
     },
     {
@@ -174,7 +179,14 @@ function detailRoutes(onSkuList: (url: URL) => void): StubRoute[] {
         onSkuList(url)
         // 只有按当前物料过滤时才返回数据：漏传 material_id 会立刻暴露成空表
         const filtered = url.searchParams.get('material_id') === String(MATERIAL_ID)
-        return route.fulfill({ json: ok({ items: filtered ? [sku] : [], limit: 100, offset: 0 }) })
+        return route.fulfill({
+          json: ok({
+            items: filtered ? [sku] : [],
+            total: filtered ? 1 : 0,
+            limit: 100,
+            offset: 0,
+          }),
+        })
       },
     },
     { method: 'POST', path: '/skus', respond: (route) => route.fulfill({ json: ok(sku) }) },
@@ -208,6 +220,8 @@ test('opens a material detail page and lists only its SKUs', async ({ page }) =>
   expect(skuListUrls[0]?.searchParams.get('material_id')).toBe(String(MATERIAL_ID))
   await expect(page.getByRole('cell', { name: 'SKU-001' })).toBeVisible()
   await expect(page.locator('tbody td[data-col-key="unit_id"]').first()).toHaveText('KG - 千克')
+  await expect(page.getByRole('heading', { name: 'SKU（共 1 条）' })).toBeVisible()
+  await expect(page.locator('.n-pagination')).toBeVisible()
 
   // 左侧菜单保持「物料」高亮；移动端侧边栏整体隐藏，只在桌面宽度断言
   const width = page.viewportSize()?.width ?? 0
@@ -355,7 +369,12 @@ test('renders every stored conversion with its own direction and editing keeps i
           ...route,
           respond: (request) =>
             request.fulfill({
-              json: ok({ items: [gramConversion, reverseConversion], limit: 100, offset: 0 }),
+              json: ok({
+                items: [gramConversion, reverseConversion],
+                total: 2,
+                limit: 100,
+                offset: 0,
+              }),
             }),
         }
       }

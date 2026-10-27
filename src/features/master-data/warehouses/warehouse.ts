@@ -42,7 +42,7 @@ export const warehouseDisableHint = '停用后该仓库不再用于新的库存�
 
 export const warehouseConfig: ResourceConfig<Warehouse> = {
   title: '仓库',
-  load: () => warehousesApi.list({ limit: 100, offset: 0 }),
+  load: (offset) => warehousesApi.list({ limit: 100, offset }),
   columns,
   fields: [
     ...commonFields,

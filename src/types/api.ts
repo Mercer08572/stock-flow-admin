@@ -10,6 +10,8 @@ export interface ApiEnvelope<T> {
 
 export interface ListResult<T> {
   items: T[]
+  /** 同过滤条件下的总记录数，不受 limit/offset 影响 */
+  total: number
   limit: number
   offset: number
 }

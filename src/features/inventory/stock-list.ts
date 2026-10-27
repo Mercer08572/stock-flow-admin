@@ -1,9 +1,9 @@
 /**
- * 库存余额列表的纯逻辑：查询参数组装、翻页判定、引用回退、下拉选项。
+ * 库存余额列表的纯逻辑：查询参数组装、引用回退、下拉选项。
  *
- * 三点契约约束决定了这里的形状（均已在后端核对）：
- * 1. `GET /inventory/stocks` 只有 `warehouse_id` / `sku_id` / `limit` / `offset`，**没有 `total`**，
- *    所以翻页只能靠「本页是否满页」推断，且不显示总条数。
+ * 契约约束（均已在后端核对）：
+ * 1. `GET /inventory/stocks` 只接受 `warehouse_id` / `sku_id` / `limit` / `offset`；
+ *    响应额外返回同条件下的 `total`，用于显示总数与页码跳转。
  * 2. 后端 `MaxListLimit = 100`，页大小不能超过它。
  * 3. `StockBalance.warehouse` / `sku` 是 `*Reference` + `omitempty`：主数据被软删除后
  *    字段可能整体缺失，也可能带着 `deleted: true` 保留。两种都要有可读回退。
@@ -36,14 +36,6 @@ export function buildStockQuery(
     limit,
     offset: Math.max(0, offset),
   }
-}
-
-/**
- * 契约没有 `total`，只能用「本页是否满页」推断是否还有下一页。
- * 满页时可能恰好是最后一页，点「下一页」会得到空列表 —— 这是已知近似。
- */
-export function hasNextPage(itemCount: number, limit: number = STOCK_PAGE_SIZE): boolean {
-  return itemCount >= limit
 }
 
 export interface StockReferenceLike {

@@ -36,8 +36,8 @@ export type {
 export interface ResourceConfig<T extends BaseEntity> {
   /** 资源名，用于页头、抽屉标题与提示文案（如「物料」「SKU」） */
   title: string
-  /** 列表加载；`limit` 一律取后端 `MaxListLimit`（100） */
-  load: () => Promise<ListResult<T>>
+  /** 列表加载；`offset` 为 0 基，`limit` 一律取后端 `MaxListLimit`（100） */
+  load: (offset: number) => Promise<ListResult<T>>
   /**
    * 列表列。
    *

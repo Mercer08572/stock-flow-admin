@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight, RefreshCw, RotateCcw, Search } from '@lucide/vue'
-import { NButton } from 'naive-ui'
+import { RefreshCw, RotateCcw, Search } from '@lucide/vue'
+import { NButton, NPagination } from 'naive-ui'
 import { computed, onMounted, reactive, ref } from 'vue'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
@@ -13,7 +13,6 @@ import { formatDateTime, type DataTableColumn } from '@/components/common/data-t
 import PageHeader from '@/components/common/PageHeader.vue'
 import {
   buildStockQuery,
-  hasNextPage,
   referenceCode,
   referenceName,
   toSelectOptions,
@@ -30,6 +29,7 @@ interface SelectOption {
 
 const filters = reactive<StockFilters>({ warehouseId: null, skuId: null })
 const offset = ref(0)
+const total = ref(0)
 const rows = ref<StockBalance[]>([])
 const loading = ref(false)
 const errorDetail = ref<ErrorDetail | null>(null)
@@ -101,17 +101,31 @@ const layerColumns: DataTableColumn<StockLayer>[] = [
   { key: 'available_qty', title: '可用数量', width: 120, align: 'right' },
 ]
 
-const canGoPrev = computed(() => offset.value > 0)
-const canGoNext = computed(() => hasNextPage(rows.value.length, STOCK_PAGE_SIZE))
-const pageLabel = computed(() => `第 ${Math.floor(offset.value / STOCK_PAGE_SIZE) + 1} 页`)
+const page = computed(() => Math.floor(offset.value / STOCK_PAGE_SIZE) + 1)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / STOCK_PAGE_SIZE)))
 
 async function load() {
   loading.value = true
   errorDetail.value = null
   try {
     const result = await inventoryApi.list(buildStockQuery(filters, offset.value, STOCK_PAGE_SIZE))
+    total.value = result.total
     rows.value = result.items ?? []
+
+    // 删除或数据变化后当前页可能已经越界：回退到最后一个有数据的页
+    if (rows.value.length === 0 && offset.value > 0) {
+      const lastOffset =
+        result.total > 0
+          ? Math.max(0, Math.ceil(result.total / STOCK_PAGE_SIZE) - 1) * STOCK_PAGE_SIZE
+          : 0
+      if (offset.value > lastOffset) {
+        offset.value = lastOffset
+        await load()
+        return
+      }
+    }
   } catch (error) {
+    total.value = 0
     rows.value = []
     errorDetail.value = getErrorDetail(error)
   } finally {
@@ -151,15 +165,11 @@ function reset() {
   void search()
 }
 
-async function goPrev() {
-  if (!canGoPrev.value) return
-  offset.value = Math.max(0, offset.value - STOCK_PAGE_SIZE)
-  await load()
-}
-
-async function goNext() {
-  if (!canGoNext.value) return
-  offset.value += STOCK_PAGE_SIZE
+async function goToPage(targetPage: number) {
+  if (loading.value) return
+  const nextOffset = Math.max(0, (targetPage - 1) * STOCK_PAGE_SIZE)
+  if (nextOffset === offset.value) return
+  offset.value = nextOffset
   await load()
 }
 
@@ -195,7 +205,7 @@ onMounted(async () => {
 
 <template>
   <main class="page">
-    <PageHeader title="库存余额" :description="`${pageLabel} · 当前结果 ${rows.length} 条`">
+    <PageHeader title="库存余额" :description="`共 ${total} 条 · 第 ${page} / ${pageCount} 页`">
       <template #actions>
         <NButton :loading="loading" @click="load">
           <template #icon><RefreshCw :size="16" /></template>
@@ -256,22 +266,32 @@ onMounted(async () => {
       />
 
       <footer class="pager">
-        <span class="pager__hint">契约无总数，仅支持前后翻页</span>
-        <div class="pager__actions">
-          <NButton size="small" :disabled="!canGoPrev || loading" @click="goPrev">
-            <template #icon><ChevronLeft :size="15" /></template>
-            上一页
-          </NButton>
-          <NButton size="small" :disabled="!canGoNext || loading" @click="goNext">
-            下一页
-            <template #icon><ChevronRight :size="15" /></template>
-          </NButton>
-        </div>
+        <span class="pager__hint">共 {{ total }} 条，每页 {{ STOCK_PAGE_SIZE }} 条</span>
+        <NPagination
+          v-if="total > 0"
+          :page="page"
+          :item-count="total"
+          :page-size="STOCK_PAGE_SIZE"
+          :disabled="loading"
+          show-quick-jumper
+          @update:page="goToPage"
+        >
+          <template #goto>跳至</template>
+        </NPagination>
       </footer>
     </section>
 
     <NDrawer v-model:show="detailOpen" :width="640" placement="right">
-      <NDrawerContent title="库存层明细" closable>
+      <NDrawerContent closable>
+        <template #header>
+          <div class="drawer-header">
+            <span>库存层明细</span>
+            <NButton size="small" :loading="detailLoading" @click="retryDetail">
+              <template #icon><RefreshCw :size="14" /></template>
+              刷新
+            </NButton>
+          </div>
+        </template>
         <AsyncState
           :loading="detailLoading"
           :error="detailError?.message ?? ''"
@@ -339,9 +359,17 @@ onMounted(async () => {
   font-size: 12px;
 }
 
-.pager__actions {
+.pager :deep(.n-pagination) {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.drawer-header {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 6px;
 }
 
 .detail-summary {
@@ -373,8 +401,8 @@ onMounted(async () => {
     flex-direction: column;
   }
 
-  .pager__actions > * {
-    flex: 1;
+  .pager :deep(.n-pagination) {
+    justify-content: flex-start;
   }
 }
 </style>

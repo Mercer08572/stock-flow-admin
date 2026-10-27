@@ -79,6 +79,7 @@ function mountPanel() {
 async function mountLoaded() {
   vi.mocked(conversionsApi.list).mockResolvedValue({
     items: conversions,
+    total: conversions.length,
     limit: 100,
     offset: 0,
   })

@@ -151,7 +151,7 @@ export function skuDetailColumns(label: (key: ReferenceKey, id: unknown) => stri
 
 export const skuConfig: ResourceConfig<SKU> = {
   title: 'SKU',
-  load: () => skusApi.list({ limit: 100, offset: 0 }),
+  load: (offset) => skusApi.list({ limit: 100, offset }),
   // 列由页面提供（引用列标签依赖页面加载到的选项），见 SkuListView.vue
   fields: skuFields,
   create: skusApi.create,

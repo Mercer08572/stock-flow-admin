@@ -87,7 +87,7 @@ export function materialColumns(label: (key: ReferenceKey, id: unknown) => strin
 
 export const materialConfig: ResourceConfig<Material> = {
   title: '物料',
-  load: () => materialsApi.list({ limit: 100, offset: 0 }),
+  load: (offset) => materialsApi.list({ limit: 100, offset }),
   // 列不由配置提供：页面的引用列标签依赖其加载到的选项，见 MaterialListView.vue
   fields: materialFields,
   create: materialsApi.create,

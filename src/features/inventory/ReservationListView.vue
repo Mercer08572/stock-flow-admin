@@ -1,7 +1,17 @@
 <script setup lang="ts">
-import { ChevronLeft, ChevronRight, RefreshCw, RotateCcw, Search } from '@lucide/vue'
+import { RefreshCw, RotateCcw, Search } from '@lucide/vue'
 import { useBreakpoints } from '@vueuse/core'
-import { NAlert, NButton, NDrawer, NDrawerContent, NForm, NFormItem, NSelect, NTag } from 'naive-ui'
+import {
+  NAlert,
+  NButton,
+  NDrawer,
+  NDrawerContent,
+  NForm,
+  NFormItem,
+  NPagination,
+  NSelect,
+  NTag,
+} from 'naive-ui'
 import { computed, h, onMounted, reactive, ref } from 'vue'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
@@ -20,12 +30,7 @@ import {
   RESERVATION_PAGE_SIZE,
   type ReservationFilters,
 } from '@/features/inventory/reservation-list'
-import {
-  hasNextPage,
-  referenceCode,
-  referenceName,
-  toSelectOptions,
-} from '@/features/inventory/stock-list'
+import { referenceCode, referenceName, toSelectOptions } from '@/features/inventory/stock-list'
 
 import type { Reference, Reservation, ReservationItem, ReservationStatus } from '@/types/api'
 
@@ -36,6 +41,7 @@ interface SelectOption {
 
 const filters = reactive<ReservationFilters>({ warehouseId: null, skuId: null, status: null })
 const offset = ref(0)
+const total = ref(0)
 const rows = ref<Reservation[]>([])
 const loading = ref(false)
 const errorDetail = ref<ErrorDetail | null>(null)
@@ -159,9 +165,8 @@ const itemColumns: DataTableColumn<ReservationItem>[] = [
   { key: 'remaining_qty', title: '剩余', width: 90, align: 'right' },
 ]
 
-const canGoPrev = computed(() => offset.value > 0)
-const canGoNext = computed(() => hasNextPage(rows.value.length, RESERVATION_PAGE_SIZE))
-const pageLabel = computed(() => `第 ${Math.floor(offset.value / RESERVATION_PAGE_SIZE) + 1} 页`)
+const page = computed(() => Math.floor(offset.value / RESERVATION_PAGE_SIZE) + 1)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / RESERVATION_PAGE_SIZE)))
 
 async function load() {
   loading.value = true
@@ -170,8 +175,23 @@ async function load() {
     const result = await inventoryApi.listReservations(
       buildReservationQuery(filters, offset.value, RESERVATION_PAGE_SIZE),
     )
+    total.value = result.total
     rows.value = result.items ?? []
+
+    // 删除或数据变化后当前页可能已经越界：回退到最后一个有数据的页
+    if (rows.value.length === 0 && offset.value > 0) {
+      const lastOffset =
+        result.total > 0
+          ? Math.max(0, Math.ceil(result.total / RESERVATION_PAGE_SIZE) - 1) * RESERVATION_PAGE_SIZE
+          : 0
+      if (offset.value > lastOffset) {
+        offset.value = lastOffset
+        await load()
+        return
+      }
+    }
   } catch (error) {
+    total.value = 0
     rows.value = []
     errorDetail.value = getErrorDetail(error)
   } finally {
@@ -212,15 +232,11 @@ function reset() {
   void search()
 }
 
-async function goPrev() {
-  if (!canGoPrev.value) return
-  offset.value = Math.max(0, offset.value - RESERVATION_PAGE_SIZE)
-  await load()
-}
-
-async function goNext() {
-  if (!canGoNext.value) return
-  offset.value += RESERVATION_PAGE_SIZE
+async function goToPage(targetPage: number) {
+  if (loading.value) return
+  const nextOffset = Math.max(0, (targetPage - 1) * RESERVATION_PAGE_SIZE)
+  if (nextOffset === offset.value) return
+  offset.value = nextOffset
   await load()
 }
 
@@ -255,7 +271,7 @@ onMounted(async () => {
 
 <template>
   <main class="page">
-    <PageHeader title="库存占用" :description="`${pageLabel} · 当前结果 ${rows.length} 条`">
+    <PageHeader title="库存占用" :description="`共 ${total} 条 · 第 ${page} / ${pageCount} 页`">
       <template #actions>
         <NButton :loading="loading" @click="load">
           <template #icon><RefreshCw :size="16" /></template>
@@ -325,22 +341,32 @@ onMounted(async () => {
       />
 
       <footer class="pager">
-        <span class="pager__hint">契约无总数，仅支持前后翻页</span>
-        <div class="pager__actions">
-          <NButton size="small" :disabled="!canGoPrev || loading" @click="goPrev">
-            <template #icon><ChevronLeft :size="15" /></template>
-            上一页
-          </NButton>
-          <NButton size="small" :disabled="!canGoNext || loading" @click="goNext">
-            下一页
-            <template #icon><ChevronRight :size="15" /></template>
-          </NButton>
-        </div>
+        <span class="pager__hint">共 {{ total }} 条，每页 {{ RESERVATION_PAGE_SIZE }} 条</span>
+        <NPagination
+          v-if="total > 0"
+          :page="page"
+          :item-count="total"
+          :page-size="RESERVATION_PAGE_SIZE"
+          :disabled="loading"
+          show-quick-jumper
+          @update:page="goToPage"
+        >
+          <template #goto>跳至</template>
+        </NPagination>
       </footer>
     </section>
 
     <NDrawer v-model:show="detailOpen" :width="isMobile ? '100%' : 760" placement="right">
-      <NDrawerContent :title="detail ? `占用单 #${detail.id}` : '库存占用详情'" closable>
+      <NDrawerContent closable>
+        <template #header>
+          <div class="drawer-header">
+            <span>{{ detail ? `占用单 #${detail.id}` : '库存占用详情' }}</span>
+            <NButton size="small" :loading="detailLoading" @click="retryDetail">
+              <template #icon><RefreshCw :size="14" /></template>
+              刷新
+            </NButton>
+          </div>
+        </template>
         <dl v-if="detail" class="summary">
           <div>
             <dt>仓库</dt>
@@ -475,9 +501,17 @@ onMounted(async () => {
   font-size: 12px;
 }
 
-.pager__actions {
+.pager :deep(.n-pagination) {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.drawer-header {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 6px;
 }
 
 .summary {
@@ -539,8 +573,8 @@ onMounted(async () => {
     flex-direction: column;
   }
 
-  .pager__actions > * {
-    flex: 1;
+  .pager :deep(.n-pagination) {
+    justify-content: flex-start;
   }
 
   .summary {

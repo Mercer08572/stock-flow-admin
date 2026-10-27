@@ -109,7 +109,7 @@ function mountView() {
 
 async function mountLoaded() {
   vi.mocked(materialsApi.get).mockResolvedValue(material)
-  vi.mocked(skusApi.list).mockResolvedValue({ items: [sku], limit: 100, offset: 0 })
+  vi.mocked(skusApi.list).mockResolvedValue({ items: [sku], total: 1, limit: 100, offset: 0 })
 
   const wrapper = mountView()
   await vi.waitFor(() => expect(wrapper.findAll('tbody tr').length).toBeGreaterThan(0))
@@ -121,10 +121,20 @@ describe('MaterialDetailView', () => {
     vi.clearAllMocks()
     // 抽屉预填与「单位换算」区块都要先加载单位目录与换算列表；
     // 不提供会让加载先失败，看不到后续请求
-    vi.mocked(unitsApi.list).mockResolvedValue({ items: [kgUnit], limit: 100, offset: 0 })
-    vi.mocked(categoriesApi.list).mockResolvedValue({ items: [category], limit: 100, offset: 0 })
-    vi.mocked(materialsApi.list).mockResolvedValue({ items: [], limit: 100, offset: 0 })
-    vi.mocked(conversionsApi.list).mockResolvedValue({ items: [], limit: 100, offset: 0 })
+    vi.mocked(unitsApi.list).mockResolvedValue({ items: [kgUnit], total: 1, limit: 100, offset: 0 })
+    vi.mocked(categoriesApi.list).mockResolvedValue({
+      items: [category],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    })
+    vi.mocked(materialsApi.list).mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 })
+    vi.mocked(conversionsApi.list).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    })
   })
 
   it('loads the material and only that material\u2019s SKUs', async () => {
@@ -175,7 +185,7 @@ describe('MaterialDetailView', () => {
     vi.mocked(materialsApi.get).mockRejectedValue(
       new ApiError('material not found', { status: 404, code: 1004, traceId: 'trace-404' }),
     )
-    vi.mocked(skusApi.list).mockResolvedValue({ items: [], limit: 100, offset: 0 })
+    vi.mocked(skusApi.list).mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 })
 
     const wrapper = mountView()
 
