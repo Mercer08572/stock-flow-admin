@@ -250,6 +250,101 @@ export interface InventoryLayerListResult {
   offset?: number;
 }
 
+export interface InventoryMovement {
+  actor_id?: number;
+  actor_label?: string;
+  actor_type?: string;
+  batch_id?: number;
+  created_at?: string;
+  id?: number;
+  idempotency_key?: string;
+  operation_type?: string;
+  qty?: string;
+  reservation_id?: number;
+  reservation_item_id?: number;
+  sku_id?: number;
+  source_id?: string;
+  source_line_id?: string;
+  source_type?: string;
+  stock_layer_id?: number;
+  warehouse_id?: number;
+}
+
+export interface InventoryMovementListResult {
+  items?: InventoryMovement[];
+  limit?: number;
+  offset?: number;
+}
+
+export interface InventoryMovementRef {
+  id?: number;
+  qty?: string;
+  stock_layer_id?: number;
+}
+
+export interface InventoryReservation {
+  actor_id?: number;
+  actor_label?: string;
+  actor_type?: string;
+  close_reason?: string;
+  consumed_qty?: string;
+  created_at?: string;
+  id?: number;
+  idempotency_key?: string;
+  /** Items 只在详情接口返回，列表接口不携带分配明细。 */
+  items?: InventoryReservationItem[];
+  released_qty?: string;
+  remaining_qty?: string;
+  sku?: SkuReference;
+  sku_id?: number;
+  source_id?: string;
+  source_line_id?: string;
+  source_type?: string;
+  status?: string;
+  total_qty?: string;
+  updated_at?: string;
+  warehouse?: WarehouseReference;
+  warehouse_id?: number;
+}
+
+export interface InventoryReservationAllocation {
+  batch_id?: number;
+  qty?: string;
+  reservation_item_id?: number;
+  stock_layer_id?: number;
+}
+
+export interface InventoryReservationItem {
+  batch_id?: number;
+  consumed_qty?: string;
+  created_at?: string;
+  id?: number;
+  received_at?: string;
+  released_qty?: string;
+  remaining_qty?: string;
+  reservation_id?: number;
+  reserved_qty?: string;
+  stock_layer_id?: number;
+  updated_at?: string;
+}
+
+export interface InventoryReservationListResult {
+  items?: InventoryReservation[];
+  limit?: number;
+  offset?: number;
+}
+
+export interface InventoryReservationSnapshot {
+  allocations?: InventoryReservationAllocation[];
+  close_reason?: string;
+  consumed_qty?: string;
+  id?: number;
+  released_qty?: string;
+  remaining_qty?: string;
+  status?: string;
+  total_qty?: string;
+}
+
 export interface InventoryStockBalance {
   available_qty?: string;
   layers?: InventoryStockLayer[];
@@ -281,6 +376,68 @@ export interface InventoryStockListResult {
   items?: InventoryStockBalance[];
   limit?: number;
   offset?: number;
+}
+
+export interface InventoryStockOperationResult {
+  batch_id?: number;
+  movements?: InventoryMovementRef[];
+  operation_type?: string;
+  qty?: string;
+  reservation?: InventoryReservationSnapshot;
+  sku_id?: number;
+  stock_after?: InventoryStockQuantities;
+  warehouse_id?: number;
+}
+
+export interface InventoryStockQuantities {
+  available_qty?: string;
+  on_hand_qty?: string;
+  reserved_qty?: string;
+}
+
+export interface InventoryDecreaseStockHTTPRequest {
+  batch_id?: number;
+  idempotency_key?: string;
+  qty?: string;
+  reservation_id?: number;
+  sku_id?: number;
+  source_id?: string;
+  source_line_id?: string;
+  source_type?: string;
+  warehouse_id?: number;
+}
+
+export interface InventoryIncreaseStockHTTPRequest {
+  batch_id?: number;
+  idempotency_key?: string;
+  qty?: string;
+  sku_id?: number;
+  source_id?: string;
+  source_line_id?: string;
+  source_type?: string;
+  warehouse_id?: number;
+}
+
+export interface InventoryReleaseStockHTTPRequest {
+  idempotency_key?: string;
+  qty?: string;
+  reservation_id?: number;
+  sku_id?: number;
+  source_id?: string;
+  source_line_id?: string;
+  source_type?: string;
+  warehouse_id?: number;
+}
+
+export interface InventoryReserveStockHTTPRequest {
+  batch_id?: number;
+  idempotency_key?: string;
+  qty?: string;
+  sku_id?: number;
+  source_id?: string;
+  source_line_id?: string;
+  source_type?: string;
+  warehouse_id?: number;
 }
 
 export interface MaterialCreateMaterialRequest {

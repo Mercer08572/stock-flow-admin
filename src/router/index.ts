@@ -44,6 +44,12 @@ export const router = createRouter({
           meta: { title: '工作台' },
         },
         {
+          path: 'inventory/reservations',
+          name: 'inventory-reservations',
+          component: () => import('@/features/inventory/ReservationListView.vue'),
+          meta: { title: '库存占用' },
+        },
+        {
           path: 'inventory/stocks',
           name: 'inventory-stocks',
           component: () => import('@/features/inventory/StockListView.vue'),

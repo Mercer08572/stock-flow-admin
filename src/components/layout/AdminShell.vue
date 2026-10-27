@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useBreakpoints } from '@vueuse/core'
 import {
+  Bookmark,
   Boxes,
   Building2,
   ChevronDown,
@@ -46,6 +47,7 @@ const icon = (component: Component) => () => h(NIcon, null, { default: () => h(c
 
 const menuOptions: MenuOption[] = [
   { label: '工作台', key: '/', icon: icon(CircleGauge) },
+  { label: '库存占用', key: '/inventory/reservations', icon: icon(Bookmark) },
   { label: '库存余额', key: '/inventory/stocks', icon: icon(PackageSearch) },
   {
     label: '主数据',

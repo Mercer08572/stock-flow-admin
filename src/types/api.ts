@@ -136,6 +136,63 @@ export interface StockLayer {
   updated_at: string
 }
 
+/** 占用单生命周期状态：仍有未处理数量时为 active，全部释放/消耗后为 closed */
+export type ReservationStatus = 'active' | 'closed'
+
+/** 占用单关闭原因，后端在 status=closed 时必填 */
+export type ReservationCloseReason = 'consumed' | 'released' | 'mixed' | 'cancelled' | 'expired'
+
+/**
+ * 占用单在库存层上的 FIFO 分配明细（`GET /inventory/reservations/:id`）。
+ *
+ * `received_at` 来自库存层；库存层缺失时为 null（后端 LEFT JOIN）。
+ */
+export interface ReservationItem {
+  id: number
+  reservation_id: number
+  stock_layer_id: number
+  batch_id: number | null
+  received_at: string | null
+  reserved_qty: string
+  released_qty: string
+  consumed_qty: string
+  remaining_qty: string
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * 库存占用单（`GET /inventory/reservations`）。
+ *
+ * 与 `StockBalance` 一样，`warehouse` / `sku` 是 `*Reference + omitempty`，
+ * 主数据被软删除后字段可能整体缺失，需要回退展示 ID。
+ * `items` 只在详情接口返回。
+ */
+export interface Reservation {
+  id: number
+  warehouse_id: number
+  warehouse?: Reference
+  sku_id: number
+  sku?: Reference
+  total_qty: string
+  released_qty: string
+  consumed_qty: string
+  remaining_qty: string
+  status: ReservationStatus
+  close_reason: ReservationCloseReason | null
+  idempotency_key: string
+  source_type: string | null
+  source_id: string | null
+  source_line_id: string | null
+  actor_type: 'admin' | 'api_app' | null
+  actor_id: number | null
+  actor_label: string | null
+  created_at: string
+  updated_at: string
+  /** 仅在详情接口返回 */
+  items?: ReservationItem[]
+}
+
 /**
  * 创建入参（`POST /xxx`）。
  *
