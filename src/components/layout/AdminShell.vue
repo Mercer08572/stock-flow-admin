@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronDown,
   CircleGauge,
+  History,
   KeyRound,
   Layers3,
   LogOut,
@@ -49,6 +50,7 @@ const menuOptions: MenuOption[] = [
   { label: '工作台', key: '/', icon: icon(CircleGauge) },
   { label: '库存占用', key: '/inventory/reservations', icon: icon(Bookmark) },
   { label: '库存余额', key: '/inventory/stocks', icon: icon(PackageSearch) },
+  { label: '库存流水', key: '/inventory/movements', icon: icon(History) },
   {
     label: '主数据',
     key: 'master-data',

@@ -196,6 +196,45 @@ export interface Reservation {
 }
 
 /**
+ * 库存流水的操作类型（`inventory_movements.operation_type`）。
+ *
+ * 取值受后端 CHECK 约束与 `normalizeListMovementsFilter` 双重限制，
+ * 前端的中文映射以这份联合类型为准（见 `features/inventory/movement-list.ts`）。
+ */
+export type MovementOperationType =
+  'increase' | 'reserve' | 'release_reserved' | 'decrease_available' | 'decrease_reserved'
+
+/**
+ * 库存流水（`GET /inventory/movements`）。
+ *
+ * 与占用单不同，后端 `inventory.Movement` **不内联** `warehouse` / `sku` 引用，
+ * 只给 ID，因此仓库 / SKU 名称要由筛选下拉的选项表反查，取不到时回退 `#id`。
+ *
+ * 可空字段与后端指针一一对应（字段本身始终存在，值为 null）：
+ * 批次、库存层、占用单与来源在部分操作类型下没有对应实体。
+ * `qty` 是 `NUMERIC(20,6)` 的字符串形式，方向由 `operation_type` 决定，前端不做浮点运算。
+ */
+export interface InventoryMovement {
+  id: number
+  operation_type: MovementOperationType
+  warehouse_id: number
+  sku_id: number
+  batch_id: number | null
+  stock_layer_id: number | null
+  reservation_id: number | null
+  reservation_item_id: number | null
+  qty: string
+  idempotency_key: string
+  source_type: string | null
+  source_id: string | null
+  source_line_id: string | null
+  actor_type: 'admin' | 'api_app' | null
+  actor_id: number | null
+  actor_label: string | null
+  created_at: string
+}
+
+/**
  * 创建入参（`POST /xxx`）。
  *
  * 与下面的 `Update*Input` 不同：创建时可空字段**可以省略**（后端是可空指针，省略即空），

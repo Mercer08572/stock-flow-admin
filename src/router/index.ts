@@ -56,6 +56,12 @@ export const router = createRouter({
           meta: { title: '库存余额' },
         },
         {
+          path: 'inventory/movements',
+          name: 'inventory-movements',
+          component: () => import('@/features/inventory/MovementListView.vue'),
+          meta: { title: '库存流水' },
+        },
+        {
           path: 'master-data/materials',
           name: 'material-list',
           component: () => import('@/features/master-data/materials/MaterialListView.vue'),

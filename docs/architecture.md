@@ -132,3 +132,7 @@ views/components -> feature stores and API modules -> api/client -> stock-flow A
 - 单元格需要格式化时使用 `render`；时间统一走 `formatDateTime`，CSV 文本走 `exportValue`。
 - 远程分页、筛选和排序参数必须显式映射到后端，不在大数据集上伪装成本地全量操作。
 - 数量字段保持后端 decimal string，不要转成 JavaScript `number` 后再参与计算。
+- 大数据集（如库存流水）通过适配层的 `virtualScroll` + `rowKey` 开启虚拟滚动（Naive UI 的虚拟列表），
+  页面仍只声明列描述。要求：行键必须稳定且唯一（传业务主键，不要用数组下标），且必须设置 `max-height`
+  —— 适配层已固定提供。滚动追加下一页用适配层再下发的 `scroll` 事件，并保留「加载更多」按钮兜底：
+  矮视口与键盘操作下滚动事件不一定触发。

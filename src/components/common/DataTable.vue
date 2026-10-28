@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T">
-/* global Blob, URL, document, Element, EventTarget, KeyboardEvent, MouseEvent */
+/* global Blob, Event, URL, document, Element, EventTarget, KeyboardEvent, MouseEvent */
 import { Download, SlidersHorizontal } from '@lucide/vue'
 import { useBreakpoints } from '@vueuse/core'
 import {
@@ -11,6 +11,7 @@ import {
   NPopover,
   type DataTableBaseColumn,
   type DataTableColumns,
+  type DataTableRowKey,
 } from 'naive-ui'
 import { computed, ref, watch } from 'vue'
 
@@ -31,6 +32,21 @@ const props = withDefaults(
     exportFileName?: string
     /** 行可点击（用于打开明细），同时支持回车 / 空格触发 */
     rowClickable?: boolean
+    /**
+     * 启用虚拟滚动：只渲染可视区的行，用于承载不断追加的大数据集。
+     *
+     * 依赖 `max-height`（本组件始终设置）与稳定的行键 `rowKey`：
+     * 缺少行键时底层虚拟列表无法定位行，滚动会出现错位与重复。
+     */
+    virtualScroll?: boolean
+    /**
+     * 行键，虚拟滚动与选中态都要求它在数据集中唯一；`null` 表示沿用底层默认行为。
+     *
+     * 用 `null` 而不是可选属性：`withDefaults` 无法为可选函数 prop 写默认值
+     * （`exactOptionalPropertyTypes` 下 `undefined` 与「未声明」不等价），
+     * 这里显式把「不提供」表达成 `null`。
+     */
+    rowKey?: ((row: T) => DataTableRowKey) | null
   }>(),
   {
     loading: false,
@@ -39,10 +55,22 @@ const props = withDefaults(
     emptyText: '暂无数据',
     exportFileName: 'export',
     rowClickable: false,
+    virtualScroll: false,
+    rowKey: null,
   },
 )
 
-const emit = defineEmits<{ retry: []; rowClick: [row: T] }>()
+const emit = defineEmits<{ retry: []; rowClick: [row: T]; scroll: [event: Event] }>()
+
+/**
+ * 行键包装：`withDefaults` 下的可选函数 prop 不能直接透传（`undefined` 会让
+ * 底层退回到「数据里的 `key` 字段」，而业务数据通常没有该字段）。
+ * 这里显式收敛成 `undefined`，交由调用方的 `rowKey` 全权决定。
+ */
+const naiveRowKey = computed<((row: T) => DataTableRowKey) | undefined>(() => {
+  const rowKey = props.rowKey
+  return rowKey ? (row: T) => rowKey(row) : undefined
+})
 
 /**
  * 行点击交给适配层统一实现：页面不接触底层表格库的行属性 API。
@@ -252,7 +280,10 @@ function exportCsv() {
         :max-height="maxHeight"
         :scroll-x="scrollX"
         :row-props="rowProps"
+        :row-key="naiveRowKey"
+        :virtual-scroll="virtualScroll"
         :theme-overrides="tableThemeOverrides"
+        @scroll="emit('scroll', $event)"
       >
         <template #empty>
           <NEmpty size="small" :description="emptyText" />
