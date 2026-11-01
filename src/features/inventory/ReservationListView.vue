@@ -51,7 +51,7 @@ const skuOptions = ref<SelectOption[]>([])
 const optionsError = ref('')
 
 const statusOptions: Array<{ label: string; value: ReservationStatus }> = [
-  { label: '占用中', value: 'active' },
+  { label: '预留中', value: 'active' },
   { label: '已关闭', value: 'closed' },
 ]
 
@@ -59,7 +59,7 @@ const detailOpen = ref(false)
 const detailLoading = ref(false)
 const detailError = ref<ErrorDetail | null>(null)
 const detail = ref<Reservation | null>(null)
-/** 保留当前明细对应的占用单 ID，重试时不需要依赖已加载成功的 detail */
+/** 保留当前明细对应的预留单 ID，重试时不需要依赖已加载成功的 detail */
 const detailTargetId = ref<number | null>(null)
 
 const breakpoints = useBreakpoints({ mobile: 768 })
@@ -68,7 +68,7 @@ const isMobile = breakpoints.smaller('mobile')
 /**
  * 仓库 / SKU 合并成一列展示。
  *
- * 占用列表列数比库存余额多，拆成「编码 + 名称」两列会把状态与数量挤到横向滚动区；
+ * 预留列表列数比库存余额多，拆成「编码 + 名称」两列会把状态与数量挤到横向滚动区；
  * 这里保留「编码 / 名称」的可读性，同时把关键字段留在首屏。
  */
 function referenceLabel(reference: Reference | undefined, fallbackId: number): string {
@@ -110,7 +110,7 @@ const columns: DataTableColumn<Reservation>[] = [
     render: (row) => referenceLabel(row.sku, row.sku_id),
     exportValue: (row) => referenceLabel(row.sku, row.sku_id),
   },
-  { key: 'total_qty', title: '占用数量', width: 110, align: 'right' },
+  { key: 'total_qty', title: '预留数量', width: 110, align: 'right' },
   { key: 'released_qty', title: '已释放', width: 100, align: 'right' },
   { key: 'consumed_qty', title: '已消耗', width: 100, align: 'right' },
   { key: 'remaining_qty', title: '剩余', width: 100, align: 'right' },
@@ -271,7 +271,7 @@ onMounted(async () => {
 
 <template>
   <main class="page">
-    <PageHeader title="库存占用" :description="`共 ${total} 条 · 第 ${page} / ${pageCount} 页`">
+    <PageHeader title="库存预留" :description="`共 ${total} 条 · 第 ${page} / ${pageCount} 页`">
       <template #actions>
         <NButton :loading="loading" @click="load">
           <template #icon><RefreshCw :size="16" /></template>
@@ -333,8 +333,8 @@ onMounted(async () => {
         :loading="loading"
         :error="errorDetail?.message ?? ''"
         :error-trace-id="errorDetail?.traceId ?? ''"
-        empty-text="暂无库存占用"
-        export-file-name="库存占用"
+        empty-text="暂无库存预留"
+        export-file-name="库存预留"
         row-clickable
         @retry="load"
         @row-click="openDetail"
@@ -360,7 +360,7 @@ onMounted(async () => {
       <NDrawerContent closable>
         <template #header>
           <div class="drawer-header">
-            <span>{{ detail ? `占用单 #${detail.id}` : '库存占用详情' }}</span>
+            <span>{{ detail ? `预留单 #${detail.id}` : '库存预留详情' }}</span>
             <NButton size="small" :loading="detailLoading" @click="retryDetail">
               <template #icon><RefreshCw :size="14" /></template>
               刷新
@@ -395,7 +395,7 @@ onMounted(async () => {
             </dd>
           </div>
           <div>
-            <dt>占用数量</dt>
+            <dt>预留数量</dt>
             <dd>{{ detail.total_qty }}</dd>
           </div>
           <div>
@@ -442,14 +442,14 @@ onMounted(async () => {
           :error="detailError?.message ?? ''"
           :error-trace-id="detailError?.traceId ?? ''"
           :empty="!detailLoading && !detailError && (detail?.items?.length ?? 0) === 0"
-          empty-text="该占用单暂无分配明细"
+          empty-text="该预留单暂无分配明细"
           @retry="retryDetail"
         >
           <DataTable
             :columns="itemColumns"
             :rows="detail?.items ?? []"
-            empty-text="该占用单暂无分配明细"
-            export-file-name="库存占用明细"
+            empty-text="该预留单暂无分配明细"
+            export-file-name="库存预留明细"
           />
         </AsyncState>
       </NDrawerContent>

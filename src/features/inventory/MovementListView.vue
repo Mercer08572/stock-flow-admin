@@ -150,7 +150,7 @@ const columns: DataTableColumn<InventoryMovement>[] = [
   },
   {
     key: 'reservation_id',
-    title: '占用单',
+    title: '预留单',
     width: 100,
     align: 'right',
     sortable: false,

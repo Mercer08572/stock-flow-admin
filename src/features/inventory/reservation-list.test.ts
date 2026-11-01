@@ -39,7 +39,7 @@ describe('buildReservationQuery', () => {
 
 describe('status labels', () => {
   it('maps reservation lifecycle statuses', () => {
-    expect(reservationStatusLabel('active')).toBe('占用中')
+    expect(reservationStatusLabel('active')).toBe('预留中')
     expect(reservationStatusLabel('closed')).toBe('已关闭')
     expect(reservationStatusLabel('unknown')).toBe('unknown')
   })

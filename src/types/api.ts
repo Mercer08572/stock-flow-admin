@@ -138,14 +138,14 @@ export interface StockLayer {
   updated_at: string
 }
 
-/** 占用单生命周期状态：仍有未处理数量时为 active，全部释放/消耗后为 closed */
+/** 预留单生命周期状态：仍有未处理数量时为 active，全部释放/消耗后为 closed */
 export type ReservationStatus = 'active' | 'closed'
 
-/** 占用单关闭原因，后端在 status=closed 时必填 */
+/** 预留单关闭原因，后端在 status=closed 时必填 */
 export type ReservationCloseReason = 'consumed' | 'released' | 'mixed' | 'cancelled' | 'expired'
 
 /**
- * 占用单在库存层上的 FIFO 分配明细（`GET /inventory/reservations/:id`）。
+ * 预留单在库存层上的 FIFO 分配明细（`GET /inventory/reservations/:id`）。
  *
  * `received_at` 来自库存层；库存层缺失时为 null（后端 LEFT JOIN）。
  */
@@ -164,7 +164,7 @@ export interface ReservationItem {
 }
 
 /**
- * 库存占用单（`GET /inventory/reservations`）。
+ * 库存预留单（`GET /inventory/reservations`）。
  *
  * 与 `StockBalance` 一样，`warehouse` / `sku` 是 `*Reference + omitempty`，
  * 主数据被软删除后字段可能整体缺失，需要回退展示 ID。
@@ -207,11 +207,11 @@ export type MovementOperationType =
 /**
  * 库存流水（`GET /inventory/movements`）。
  *
- * 与占用单不同，后端 `inventory.Movement` **不内联** `warehouse` / `sku` 引用，
+ * 与预留单不同，后端 `inventory.Movement` **不内联** `warehouse` / `sku` 引用，
  * 只给 ID，因此仓库 / SKU 名称要由筛选下拉的选项表反查，取不到时回退 `#id`。
  *
  * 可空字段与后端指针一一对应（字段本身始终存在，值为 null）：
- * 批次、库存层、占用单与来源在部分操作类型下没有对应实体。
+ * 批次、库存层、预留单与来源在部分操作类型下没有对应实体。
  * `qty` 是 `NUMERIC(20,6)` 的字符串形式，方向由 `operation_type` 决定，前端不做浮点运算。
  */
 export interface InventoryMovement {

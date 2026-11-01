@@ -47,7 +47,7 @@ export const router = createRouter({
           path: 'inventory/reservations',
           name: 'inventory-reservations',
           component: () => import('@/features/inventory/ReservationListView.vue'),
-          meta: { title: '库存占用' },
+          meta: { title: '库存预留' },
         },
         {
           path: 'inventory/stocks',

@@ -1,5 +1,5 @@
 /**
- * 库存占用列表的纯逻辑：查询参数组装、状态/关闭原因标签、来源格式化。
+ * 库存预留列表的纯逻辑：查询参数组装、状态/关闭原因标签、来源格式化。
  *
  * 契约约束（已在后端核对）：
  * 1. `GET /inventory/reservations` 接受 `warehouse_id` / `sku_id` / `status` / `limit` / `offset`；
@@ -43,7 +43,7 @@ export function buildReservationQuery(
 }
 
 export function reservationStatusLabel(status: string): string {
-  if (status === 'active') return '占用中'
+  if (status === 'active') return '预留中'
   if (status === 'closed') return '已关闭'
   return status
 }

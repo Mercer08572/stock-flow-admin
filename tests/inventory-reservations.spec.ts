@@ -73,10 +73,10 @@ function referenceRoutes(items = [reservation]): StubRoute[] {
   return [...filterRoutes(), listRoute(items)]
 }
 
-test.describe('库存占用（桌面）', () => {
+test.describe('库存预留（桌面）', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
-  test('places 库存占用 between 工作台 and 库存余额', async ({ page }) => {
+  test('places 库存预留 between 工作台 and 库存余额', async ({ page }) => {
     await mockApi(page, [
       {
         method: 'GET',
@@ -90,7 +90,7 @@ test.describe('库存占用（桌面）', () => {
     await page.locator('.app-sidebar .n-menu-item-content-header').first().waitFor()
 
     const labels = await page.locator('.app-sidebar .n-menu-item-content-header').allTextContents()
-    expect(labels.slice(0, 3)).toEqual(['工作台', '库存占用', '库存余额'])
+    expect(labels.slice(0, 3)).toEqual(['工作台', '库存预留', '库存余额'])
   })
 
   test('lists reservations with readable warehouse and sku references', async ({ page }) => {
@@ -98,12 +98,12 @@ test.describe('库存占用（桌面）', () => {
 
     await page.goto('/inventory/reservations')
 
-    await expect(page.getByRole('heading', { level: 1, name: '库存占用' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: '库存预留' })).toBeVisible()
     await expect(page.getByRole('cell', { name: 'WH-01 / 主仓', exact: true })).toBeVisible()
     await expect(page.getByRole('cell', { name: 'SKU-09 / 标准箱', exact: true })).toBeVisible()
     await expect(page.getByRole('cell', { name: 'sales_order / 1 / 1' })).toBeVisible()
     await expect(page.locator('td[data-col-key="remaining_qty"]')).toHaveText('5')
-    await expect(page.getByText('占用中', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('预留中', { exact: true }).first()).toBeVisible()
   })
 
   test('sends the status filter and resets to the first page', async ({ page }) => {
@@ -190,7 +190,7 @@ test.describe('库存占用（桌面）', () => {
 
     const drawer = page.locator('.n-drawer')
     await expect(drawer).toBeVisible()
-    await expect(drawer.getByText('占用单 #2')).toBeVisible()
+    await expect(drawer.getByText('预留单 #2')).toBeVisible()
     await expect(drawer.getByText('sales_order:SO-20261027-002:5:reserve')).toBeVisible()
     await expect(drawer.getByText('无批次')).toBeVisible()
     await expect(drawer.locator('td[data-col-key="remaining_qty"]')).toHaveText('3')
@@ -234,11 +234,11 @@ test.describe('库存占用（桌面）', () => {
 
     await page.goto('/inventory/reservations')
 
-    await expect(page.getByText('暂无库存占用')).toBeVisible()
+    await expect(page.getByText('暂无库存预留')).toBeVisible()
   })
 })
 
-test.describe('库存占用（320 px）', () => {
+test.describe('库存预留（320 px）', () => {
   test.use({ viewport: { width: 320, height: 720 } })
 
   test('stacks filters and keeps the page free of horizontal overflow', async ({ page }) => {
@@ -272,7 +272,7 @@ test.describe('库存占用（320 px）', () => {
 
     const drawer = page.locator('.n-drawer')
     await expect(drawer).toBeVisible()
-    await expect(drawer.getByText('占用单 #2')).toBeVisible()
+    await expect(drawer.getByText('预留单 #2')).toBeVisible()
 
     const width = await drawer.evaluate((element) =>
       Math.round(element.getBoundingClientRect().width),
