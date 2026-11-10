@@ -1,5 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, NavigationFailureType } from 'vue-router'
 
+import {
+  failPageProgress,
+  finishPageProgress,
+  startPageProgress,
+} from '@/components/layout/page-progress'
 import { useAuthStore } from '@/features/auth/auth.store'
 import { pinia } from '@/stores'
 
@@ -116,6 +121,8 @@ export const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  if (to.meta.shell) startPageProgress()
+
   const auth = useAuthStore(pinia)
 
   if (to.meta.public) {
@@ -140,6 +147,13 @@ router.beforeEach(async (to) => {
   return true
 })
 
-router.afterEach((to) => {
+router.afterEach((to, _from, failure) => {
+  // 被新导航取消的旧导航不要收尾，否则会把仍在加载的新页面误判为完成
+  if (failure?.type !== NavigationFailureType.cancelled) finishPageProgress()
+
   document.title = to.meta.title ? `${to.meta.title} | Stock Flow` : 'Stock Flow'
+})
+
+router.onError((_error, to) => {
+  if (to.meta.shell) failPageProgress()
 })
