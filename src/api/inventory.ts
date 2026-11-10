@@ -32,6 +32,7 @@ export const inventoryApi = {
   listMovements: (query: {
     warehouse_id?: number
     sku_id?: number
+    reservation_id?: number
     operation_type?: MovementOperationType
     created_from?: string
     created_to?: string

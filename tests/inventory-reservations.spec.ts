@@ -42,6 +42,26 @@ const reservationItem = {
   updated_at: '2026-10-27T10:41:27+08:00',
 }
 
+const reservationMovement = {
+  id: 21,
+  operation_type: 'reserve',
+  warehouse_id: warehouse.id,
+  sku_id: sku.id,
+  batch_id: null,
+  stock_layer_id: reservationItem.stock_layer_id,
+  reservation_id: reservation.id,
+  reservation_item_id: reservationItem.id,
+  qty: '5.000000',
+  idempotency_key: reservation.idempotency_key,
+  source_type: reservation.source_type,
+  source_id: reservation.source_id,
+  source_line_id: reservation.source_line_id,
+  actor_type: 'admin',
+  actor_id: 1,
+  actor_label: 'admin',
+  created_at: '2026-10-27T10:41:27+08:00',
+}
+
 /** 造桩的公共部分：筛选下拉的数据源 */
 function filterRoutes(): StubRoute[] {
   return [
@@ -71,6 +91,20 @@ function listRoute(items = [reservation]): StubRoute {
 
 function referenceRoutes(items = [reservation]): StubRoute[] {
   return [...filterRoutes(), listRoute(items)]
+}
+
+/** 预留单详情里的操作日志：只按 reservation_id 查询库存流水 */
+function movementLogRoute(items = [reservationMovement], queries: string[] = []): StubRoute {
+  return {
+    method: 'GET',
+    path: '/inventory/movements',
+    respond: (route) => {
+      queries.push(new URL(route.request().url()).search)
+      return route.fulfill({
+        json: ok({ items, total: items.length, limit: 100, offset: 0 }),
+      })
+    },
+  }
 }
 
 test.describe('库存预留（桌面）', () => {
@@ -163,8 +197,10 @@ test.describe('库存预留（桌面）', () => {
 
   test('opens the allocation drawer for a reservation', async ({ page }) => {
     const detailPaths: string[] = []
+    const logQueries: string[] = []
     await mockApi(page, [
       ...referenceRoutes(),
+      movementLogRoute([reservationMovement], logQueries),
       {
         method: 'GET',
         path: '/inventory/reservations/:id',
@@ -195,13 +231,75 @@ test.describe('库存预留（桌面）', () => {
     await expect(drawer.getByText('无批次')).toBeVisible()
     await expect(drawer.locator('td[data-col-key="remaining_qty"]')).toHaveText('3')
 
+    // 操作日志来自库存流水，必须按当前预留单过滤
+    await expect(drawer.getByText('操作日志')).toBeVisible()
+    await expect(drawer.locator('td[data-col-key="operation_type"]')).toHaveText(['预留'])
+    await expect(drawer.locator('td[data-col-key="qty"]')).toHaveText(['5.000000'])
+    await expect.poll(() => logQueries.length).toBe(1)
+    const logParams = new URLSearchParams(logQueries[0])
+    expect(logParams.get('reservation_id')).toBe('2')
+    expect(logParams.get('limit')).toBe('100')
+
     expect(detailPaths).toEqual(['/api/v1/inventory/reservations/2'])
+  })
+
+  test('loads more operation log entries', async ({ page }) => {
+    const logQueries: string[] = []
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      ...reservationMovement,
+      id: 1000 + index,
+    }))
+    const secondPage = Array.from({ length: 50 }, (_, index) => ({
+      ...reservationMovement,
+      id: 1100 + index,
+    }))
+
+    await mockApi(page, [
+      ...referenceRoutes(),
+      {
+        method: 'GET',
+        path: '/inventory/movements',
+        respond: async (route) => {
+          const url = new URL(route.request().url())
+          const offset = Number(url.searchParams.get('offset') ?? 0)
+          logQueries.push(url.search)
+          await route.fulfill({
+            json: ok({
+              items: offset === 0 ? firstPage : secondPage,
+              total: 150,
+              limit: 100,
+              offset,
+            }),
+          })
+        },
+      },
+      {
+        method: 'GET',
+        path: '/inventory/reservations/:id',
+        respond: (route) =>
+          route.fulfill({ json: ok({ ...reservation, items: [reservationItem] }) }),
+      },
+    ])
+
+    await page.goto('/inventory/reservations')
+    await page.locator('tbody tr').first().click()
+
+    const drawer = page.locator('.n-drawer')
+    await expect(drawer.getByText('已加载 100 / 共 150 条')).toBeVisible()
+
+    await drawer.getByRole('button', { name: '加载更多' }).click()
+
+    await expect(drawer.locator('td[data-col-key="id"]')).toHaveCount(150)
+    await expect.poll(() => logQueries.length).toBe(2)
+    expect(new URLSearchParams(logQueries[1]).get('offset')).toBe('100')
   })
 
   test('refreshes the reservation drawer without closing it', async ({ page }) => {
     const detailPaths: string[] = []
+    const logQueries: string[] = []
     await mockApi(page, [
       ...referenceRoutes(),
+      movementLogRoute([reservationMovement], logQueries),
       {
         method: 'GET',
         path: '/inventory/reservations/:id',
@@ -226,6 +324,8 @@ test.describe('库存预留（桌面）', () => {
       '/api/v1/inventory/reservations/2',
       '/api/v1/inventory/reservations/2',
     ])
+    // 顶部刷新同时重拉操作日志
+    await expect.poll(() => logQueries.length).toBe(2)
     await expect(drawer).toBeVisible()
   })
 
@@ -259,6 +359,7 @@ test.describe('库存预留（320 px）', () => {
   test('opens the detail drawer at full width', async ({ page }) => {
     await mockApi(page, [
       ...referenceRoutes(),
+      movementLogRoute(),
       {
         method: 'GET',
         path: '/inventory/reservations/:id',

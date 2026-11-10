@@ -22,6 +22,7 @@ import { warehousesApi } from '@/api/warehouses'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import PageHeader from '@/components/common/PageHeader.vue'
+import ReservationDetailDrawer from '@/features/inventory/ReservationDetailDrawer.vue'
 import {
   buildMovementQuery,
   formatMovementActor,
@@ -75,6 +76,10 @@ const errorDetail = ref<ErrorDetail | null>(null)
 const moreError = ref('')
 /** 首屏加载后自增，用重建表格的方式把虚拟列表的滚动位置归零 */
 const listVersion = ref(0)
+
+/** 预留单详情抽屉：流水行只存 ID，点击后按 ID 拉取详情 */
+const reservationDetailOpen = ref(false)
+const selectedReservationId = ref<number | null>(null)
 
 const warehouseOptions = ref<SelectOption[]>([])
 const skuOptions = ref<SelectOption[]>([])
@@ -154,7 +159,21 @@ const columns: DataTableColumn<InventoryMovement>[] = [
     width: 100,
     align: 'right',
     sortable: false,
-    render: (row) => (row.reservation_id === null ? '-' : String(row.reservation_id)),
+    render: (row) => {
+      const reservationId = row.reservation_id
+      if (reservationId === null) return '-'
+      return h(
+        NButton,
+        {
+          text: true,
+          type: 'primary',
+          size: 'small',
+          'aria-label': `查看预留单 #${reservationId}`,
+          onClick: () => openReservationDetail(reservationId),
+        },
+        { default: () => `#${reservationId}` },
+      )
+    },
   },
   {
     key: 'source_type',
@@ -309,6 +328,11 @@ function retryLoadMore() {
   void loadMore()
 }
 
+function openReservationDetail(id: number) {
+  selectedReservationId.value = id
+  reservationDetailOpen.value = true
+}
+
 onMounted(async () => {
   await Promise.all([search(), loadOptions()])
 })
@@ -436,6 +460,11 @@ onMounted(async () => {
           <span v-else class="pager__done">没有更多了</span>
         </footer>
       </section>
+
+      <ReservationDetailDrawer
+        v-model:show="reservationDetailOpen"
+        :reservation-id="selectedReservationId"
+      />
     </main>
   </NConfigProvider>
 </template>

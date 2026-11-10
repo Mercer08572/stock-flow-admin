@@ -1,27 +1,16 @@
 <script setup lang="ts">
 import { RefreshCw, RotateCcw, Search } from '@lucide/vue'
-import { useBreakpoints } from '@vueuse/core'
-import {
-  NAlert,
-  NButton,
-  NDrawer,
-  NDrawerContent,
-  NForm,
-  NFormItem,
-  NPagination,
-  NSelect,
-  NTag,
-} from 'naive-ui'
+import { NAlert, NButton, NForm, NFormItem, NPagination, NSelect, NTag } from 'naive-ui'
 import { computed, h, onMounted, reactive, ref } from 'vue'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
 import { inventoryApi } from '@/api/inventory'
 import { skusApi } from '@/api/skus'
 import { warehousesApi } from '@/api/warehouses'
-import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import PageHeader from '@/components/common/PageHeader.vue'
+import ReservationDetailDrawer from '@/features/inventory/ReservationDetailDrawer.vue'
 import {
   buildReservationQuery,
   closeReasonLabel,
@@ -32,7 +21,7 @@ import {
 } from '@/features/inventory/reservation-list'
 import { referenceCode, referenceName, toSelectOptions } from '@/features/inventory/stock-list'
 
-import type { Reference, Reservation, ReservationItem, ReservationStatus } from '@/types/api'
+import type { Reference, Reservation, ReservationStatus } from '@/types/api'
 
 interface SelectOption {
   label: string
@@ -56,14 +45,8 @@ const statusOptions: Array<{ label: string; value: ReservationStatus }> = [
 ]
 
 const detailOpen = ref(false)
-const detailLoading = ref(false)
-const detailError = ref<ErrorDetail | null>(null)
-const detail = ref<Reservation | null>(null)
-/** 保留当前明细对应的预留单 ID，重试时不需要依赖已加载成功的 detail */
+/** 当前抽屉对应的预留单 ID，详情加载与重试由抽屉组件负责 */
 const detailTargetId = ref<number | null>(null)
-
-const breakpoints = useBreakpoints({ mobile: 768 })
-const isMobile = breakpoints.smaller('mobile')
 
 /**
  * 仓库 / SKU 合并成一列展示。
@@ -144,27 +127,6 @@ const columns: DataTableColumn<Reservation>[] = [
   },
 ]
 
-const itemColumns: DataTableColumn<ReservationItem>[] = [
-  { key: 'stock_layer_id', title: '库存层 ID', width: 100, align: 'right' },
-  {
-    key: 'batch_id',
-    title: '批次',
-    width: 90,
-    align: 'right',
-    render: (row) => (row.batch_id === null ? '无批次' : String(row.batch_id)),
-  },
-  {
-    key: 'received_at',
-    title: '入库时间',
-    width: 150,
-    render: (row) => formatDateTime(row.received_at),
-  },
-  { key: 'reserved_qty', title: '分配数量', width: 100, align: 'right' },
-  { key: 'released_qty', title: '已释放', width: 90, align: 'right' },
-  { key: 'consumed_qty', title: '已消耗', width: 90, align: 'right' },
-  { key: 'remaining_qty', title: '剩余', width: 90, align: 'right' },
-]
-
 const page = computed(() => Math.floor(offset.value / RESERVATION_PAGE_SIZE) + 1)
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / RESERVATION_PAGE_SIZE)))
 
@@ -240,28 +202,9 @@ async function goToPage(targetPage: number) {
   await load()
 }
 
-async function openDetail(row: Reservation) {
-  detailOpen.value = true
-  detailError.value = null
-  detail.value = null
+function openDetail(row: Reservation) {
   detailTargetId.value = row.id
-  await fetchDetail(row.id)
-}
-
-async function fetchDetail(id: number) {
-  detailLoading.value = true
-  detailError.value = null
-  try {
-    detail.value = await inventoryApi.getReservation(id)
-  } catch (error) {
-    detailError.value = getErrorDetail(error)
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-function retryDetail() {
-  if (detailTargetId.value !== null) void fetchDetail(detailTargetId.value)
+  detailOpen.value = true
 }
 
 onMounted(async () => {
@@ -356,104 +299,7 @@ onMounted(async () => {
       </footer>
     </section>
 
-    <NDrawer v-model:show="detailOpen" :width="isMobile ? '100%' : 760" placement="right">
-      <NDrawerContent closable>
-        <template #header>
-          <div class="drawer-header">
-            <span>{{ detail ? `预留单 #${detail.id}` : '库存预留详情' }}</span>
-            <NButton size="small" :loading="detailLoading" @click="retryDetail">
-              <template #icon><RefreshCw :size="14" /></template>
-              刷新
-            </NButton>
-          </div>
-        </template>
-        <dl v-if="detail" class="summary">
-          <div>
-            <dt>仓库</dt>
-            <dd>
-              {{ referenceCode(detail.warehouse, detail.warehouse_id) }} /
-              {{ referenceName(detail.warehouse, detail.warehouse_id) }}
-            </dd>
-          </div>
-          <div>
-            <dt>SKU</dt>
-            <dd>
-              {{ referenceCode(detail.sku, detail.sku_id) }} /
-              {{ referenceName(detail.sku, detail.sku_id) }}
-            </dd>
-          </div>
-          <div>
-            <dt>状态</dt>
-            <dd>
-              <NTag
-                :type="detail.status === 'active' ? 'warning' : 'default'"
-                size="small"
-                :bordered="false"
-              >
-                {{ reservationStatusLabel(detail.status) }}
-              </NTag>
-            </dd>
-          </div>
-          <div>
-            <dt>预留数量</dt>
-            <dd>{{ detail.total_qty }}</dd>
-          </div>
-          <div>
-            <dt>已释放</dt>
-            <dd>{{ detail.released_qty }}</dd>
-          </div>
-          <div>
-            <dt>已消耗</dt>
-            <dd>{{ detail.consumed_qty }}</dd>
-          </div>
-          <div>
-            <dt>剩余</dt>
-            <dd>{{ detail.remaining_qty }}</dd>
-          </div>
-          <div>
-            <dt>关闭原因</dt>
-            <dd>{{ closeReasonLabel(detail.close_reason) }}</dd>
-          </div>
-          <div>
-            <dt>来源</dt>
-            <dd>{{ formatReservationSource(detail) }}</dd>
-          </div>
-          <div>
-            <dt>操作人</dt>
-            <dd>{{ detail.actor_label || '-' }}</dd>
-          </div>
-          <div class="summary__wide">
-            <dt>幂等键</dt>
-            <dd class="summary__key">{{ detail.idempotency_key || '-' }}</dd>
-          </div>
-          <div>
-            <dt>创建时间</dt>
-            <dd>{{ formatDateTime(detail.created_at) }}</dd>
-          </div>
-          <div>
-            <dt>更新时间</dt>
-            <dd>{{ formatDateTime(detail.updated_at) }}</dd>
-          </div>
-        </dl>
-
-        <h3 class="detail-heading">分配明细</h3>
-        <AsyncState
-          :loading="detailLoading"
-          :error="detailError?.message ?? ''"
-          :error-trace-id="detailError?.traceId ?? ''"
-          :empty="!detailLoading && !detailError && (detail?.items?.length ?? 0) === 0"
-          empty-text="该预留单暂无分配明细"
-          @retry="retryDetail"
-        >
-          <DataTable
-            :columns="itemColumns"
-            :rows="detail?.items ?? []"
-            empty-text="该预留单暂无分配明细"
-            export-file-name="库存预留明细"
-          />
-        </AsyncState>
-      </NDrawerContent>
-    </NDrawer>
+    <ReservationDetailDrawer v-model:show="detailOpen" :reservation-id="detailTargetId" />
   </main>
 </template>
 
@@ -506,52 +352,6 @@ onMounted(async () => {
   justify-content: flex-end;
 }
 
-.drawer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-right: 6px;
-}
-
-.summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 20px;
-  margin: 0 0 20px;
-}
-
-.summary > div {
-  min-width: 0;
-}
-
-.summary dt {
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
-.summary dd {
-  margin: 3px 0 0;
-  color: var(--color-text);
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-
-.summary__wide {
-  grid-column: 1 / -1;
-}
-
-.summary__key {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.detail-heading {
-  margin: 0 0 10px;
-  color: var(--color-text);
-  font-size: 15px;
-  font-weight: 650;
-}
-
 @media (max-width: 680px) {
   .filters {
     align-items: stretch;
@@ -575,10 +375,6 @@ onMounted(async () => {
 
   .pager :deep(.n-pagination) {
     justify-content: flex-start;
-  }
-
-  .summary {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

@@ -162,8 +162,120 @@ test.describe('库存流水（桌面）', () => {
     await expect(
       page.getByRole('cell', { name: 'sales_order / SO-1 / 5', exact: true }),
     ).toBeVisible()
-    await expect(page.locator('td[data-col-key="reservation_id"]')).toHaveText('5')
+    await expect(page.locator('td[data-col-key="reservation_id"]')).toHaveText('#5')
     await expect(page.locator('td[data-col-key="batch_id"]')).toHaveText('无批次')
+  })
+
+  test('opens the reservation detail drawer by clicking the reservation id', async ({ page }) => {
+    const detailPaths: string[] = []
+    const logQueries: string[] = []
+    await mockApi(page, [
+      ...referenceRoutes(),
+      {
+        method: 'GET',
+        path: '/inventory/movements',
+        respond: async (route) => {
+          const url = new URL(route.request().url())
+          const reservationId = url.searchParams.get('reservation_id')
+          // 抽屉里的操作日志按预留单过滤，列表请求不带该参数
+          if (reservationId !== null) {
+            logQueries.push(url.search)
+            await route.fulfill({
+              json: ok({
+                items: [movement(21, { operation_type: 'release_reserved', reservation_id: 5 })],
+                total: 1,
+                limit: 100,
+                offset: 0,
+              }),
+            })
+            return
+          }
+
+          const items = [movement(1), movement(2, { operation_type: 'reserve', reservation_id: 5 })]
+          const offset = Number(url.searchParams.get('offset') ?? 0)
+          const limit = Number(url.searchParams.get('limit') ?? 0)
+          await route.fulfill({
+            json: ok({
+              items: items.slice(offset, offset + limit),
+              total: items.length,
+              limit,
+              offset,
+            }),
+          })
+        },
+      },
+      {
+        method: 'GET',
+        path: '/inventory/reservations/:id',
+        respond: async (route) => {
+          detailPaths.push(new URL(route.request().url()).pathname)
+          await route.fulfill({
+            json: ok({
+              id: 5,
+              warehouse_id: warehouse.id,
+              warehouse,
+              sku_id: sku.id,
+              sku,
+              total_qty: '5',
+              released_qty: '2',
+              consumed_qty: '0',
+              remaining_qty: '3',
+              status: 'active',
+              close_reason: null,
+              idempotency_key: 'sales_order:SO-1:5:reserve',
+              source_type: 'sales_order',
+              source_id: '1',
+              source_line_id: '5',
+              actor_type: 'admin',
+              actor_id: 1,
+              actor_label: 'admin',
+              created_at: '2026-10-27T10:41:27+08:00',
+              updated_at: '2026-10-27T10:41:27+08:00',
+              items: [
+                {
+                  id: 11,
+                  reservation_id: 5,
+                  stock_layer_id: 11,
+                  batch_id: null,
+                  received_at: '2026-10-01T08:00:00+08:00',
+                  reserved_qty: '5',
+                  released_qty: '2',
+                  consumed_qty: '0',
+                  remaining_qty: '3',
+                  created_at: '2026-10-27T10:41:27+08:00',
+                  updated_at: '2026-10-27T10:41:27+08:00',
+                },
+              ],
+            }),
+          })
+        },
+      },
+    ])
+
+    await page.goto('/inventory/movements')
+
+    const reservationCells = page.locator('tbody td[data-col-key="reservation_id"]')
+    // 没有预留单的流水保持纯文本，不提供无效的点击入口
+    await expect(reservationCells.first()).toHaveText('-')
+    await expect(reservationCells.first().locator('button')).toHaveCount(0)
+    await expect(reservationCells.nth(1)).toHaveText('#5')
+
+    await page.getByRole('button', { name: '查看预留单 #5' }).click()
+
+    const drawer = page.locator('.n-drawer')
+    await expect(drawer).toBeVisible()
+    await expect(drawer.getByText('预留单 #5')).toBeVisible()
+    await expect(drawer.getByText('sales_order / 1 / 5')).toBeVisible()
+    await expect(drawer.locator('td[data-col-key="remaining_qty"]')).toHaveText('3')
+    await expect(drawer.getByText('操作日志')).toBeVisible()
+    await expect(drawer.locator('td[data-col-key="operation_type"]')).toHaveText(['释放预留'])
+    await expect(drawer.locator('td[data-col-key="qty"]')).toHaveText(['21.000000'])
+    expect(detailPaths).toEqual(['/api/v1/inventory/reservations/5'])
+    expect(logQueries).toHaveLength(1)
+    expect(new URLSearchParams(logQueries[0]).get('reservation_id')).toBe('5')
+
+    await page.keyboard.press('Escape')
+    await expect(drawer).toBeHidden()
   })
 
   test('sends every search filter and restarts from the first page', async ({ page }) => {
