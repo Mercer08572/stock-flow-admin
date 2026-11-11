@@ -104,6 +104,18 @@ export const router = createRouter({
           meta: { title: '仓库' },
         },
         {
+          path: 'settings/api-keys',
+          name: 'api-keys',
+          component: () => import('@/features/api-keys/ApiKeyListView.vue'),
+          meta: { title: 'API 密钥' },
+        },
+        {
+          path: 'settings/audit-logs',
+          name: 'audit-logs',
+          component: () => import('@/features/audit/AuditLogListView.vue'),
+          meta: { title: '审计日志' },
+        },
+        {
           path: 'account/password',
           name: 'change-password',
           component: () => import('@/features/auth/ChangePasswordView.vue'),

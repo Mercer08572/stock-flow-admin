@@ -338,3 +338,116 @@ export interface UpdateWarehouseInput {
   contact_phone: string | null
   remark: string | null
 }
+
+/** 外部系统（API 应用）状态 */
+export type APIAppStatus = 'active' | 'inactive'
+
+/** 密钥状态：active=启用，blocked=已禁用 */
+export type APISecretStatus = 'active' | 'blocked'
+
+/**
+ * 外部系统（`GET /auth/apps`）。
+ *
+ * `app_id` 是对外公开标识，与密钥一起通过请求头认证；`metadata` 目前不由页面编辑，
+ * 编辑应用时原样回传，避免全量更新把已有值清空。
+ */
+export interface APIApp {
+  id: number
+  app_id: string
+  name: string
+  description: string | null
+  status: APIAppStatus
+  metadata: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+/** API 密钥（`GET /auth/apps/:id/secrets`）；后端不返回 `secret_hash` */
+export interface APISecret {
+  id: number
+  api_app_id: number
+  secret_id: string
+  name: string
+  status: APISecretStatus
+  bound_metadata: Record<string, unknown>
+  expires_at: string | null
+  last_used_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * 签发/重新签发的响应。
+ *
+ * `secret` 是明文，只在这一次响应中出现；页面关闭弹窗后不能再次获取。
+ */
+export interface IssuedAPISecret extends APISecret {
+  secret: string
+}
+
+export type APIAppListResult = ListResult<APIApp>
+
+export interface APISecretListResult {
+  items: APISecret[]
+}
+
+export interface CreateAPIAppInput {
+  name: string
+  description?: string | null
+  status: APIAppStatus
+  metadata?: Record<string, unknown>
+}
+
+/** `PUT` 是全量替换：`metadata` 必须回传当前值 */
+export interface UpdateAPIAppInput {
+  name: string
+  description: string | null
+  status: APIAppStatus
+  metadata: Record<string, unknown>
+}
+
+export interface IssueAPISecretInput {
+  name: string
+  bound_metadata?: Record<string, unknown>
+  expires_at?: string | null
+}
+
+export interface UpdateAPISecretInput {
+  name: string
+  expires_at: string | null
+}
+
+export type ReissueAPISecretInput = UpdateAPISecretInput
+
+/** 审计日志的认证方式；ambiguous 表示同时带了 Cookie 和 API 请求头 */
+export type AuditAuthMethod = 'admin_session' | 'api_app' | 'none' | 'ambiguous'
+
+export type AuditActorType = 'admin' | 'api_app'
+
+/** 单条请求审计日志（`GET /audit/logs`）；不包含请求/响应体与密钥 */
+export interface AuditLog {
+  id: number
+  occurred_at: string
+  trace_id: string
+  method: string
+  path: string
+  route?: string
+  status_code: number
+  latency_ms: number
+  auth_method: AuditAuthMethod
+  actor_type?: AuditActorType
+  actor_id?: number
+  actor_label?: string
+  credential_id?: string
+  client_ip?: string
+  user_agent?: string
+  error_code?: string
+  request_bytes: number
+  response_bytes: number
+}
+
+/** 审计日志使用游标分页：不返回 total，避免对长时间范围做 COUNT(*) */
+export interface AuditLogListResult {
+  items: AuditLog[]
+  next_cursor?: string
+}

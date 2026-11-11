@@ -15,6 +15,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Ruler,
+  ScrollText,
+  Settings,
   Tags,
   Warehouse,
 } from '@lucide/vue'
@@ -71,6 +73,15 @@ const menuOptions: MenuOption[] = [
       { label: '物料分类', key: '/master-data/categories', icon: icon(Layers3) },
       { label: '计量单位', key: '/master-data/units', icon: icon(Ruler) },
       { label: '仓库', key: '/master-data/warehouses', icon: icon(Warehouse) },
+    ],
+  },
+  {
+    label: '系统设置',
+    key: 'settings',
+    icon: icon(Settings),
+    children: [
+      { label: 'API 密钥', key: '/settings/api-keys', icon: icon(KeyRound) },
+      { label: '审计日志', key: '/settings/audit-logs', icon: icon(ScrollText) },
     ],
   },
 ]

@@ -19,6 +19,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   AUTH_API_SECRET_NOT_FOUND: '密钥不存在',
   AUTH_API_APP_DUPLICATE: '应用标识已存在，请更换后重试',
   AUTH_API_SECRET_DUPLICATE: '密钥标识已存在，请更换后重试',
+  AUTH_API_SECRET_NOT_ACTIVE: '密钥已禁用，请先启用后再重新签发',
 
   // 仓库
   WAREHOUSE_NOT_FOUND: '仓库不存在',

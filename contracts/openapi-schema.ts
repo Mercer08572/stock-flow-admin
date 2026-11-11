@@ -85,6 +85,44 @@ export enum AuthSecretStatus {
   SecretStatusBlocked = "blocked",
 }
 
+export enum AuditAuthMethod {
+  AuthMethodAdminSession = "admin_session",
+  AuthMethodAPIApp = "api_app",
+  AuthMethodNone = "none",
+  AuthMethodAmbiguous = "ambiguous",
+}
+
+export enum AuditActorType {
+  ActorTypeAdmin = "admin",
+  ActorTypeAPIApp = "api_app",
+}
+
+export interface AuditListResult {
+  items?: AuditLog[];
+  next_cursor?: string;
+}
+
+export interface AuditLog {
+  actor_id?: number;
+  actor_label?: string;
+  actor_type?: AuditActorType;
+  auth_method?: AuditAuthMethod;
+  client_ip?: string;
+  credential_id?: string;
+  error_code?: string;
+  id?: number;
+  latency_ms?: number;
+  method?: string;
+  occurred_at?: string;
+  path?: string;
+  request_bytes?: number;
+  response_bytes?: number;
+  route?: string;
+  status_code?: number;
+  trace_id?: string;
+  user_agent?: string;
+}
+
 export interface AuthAPIApp {
   app_id?: string;
   created_at?: string;
@@ -170,11 +208,21 @@ export interface AuthLoginResponse {
 
 export type AuthMetadata = Record<string, any>;
 
+export interface AuthReissueAPISecretRequest {
+  expires_at?: string;
+  name?: string;
+}
+
 export interface AuthUpdateAPIAppRequest {
   description?: string;
   metadata?: AuthMetadata;
   name?: string;
   status?: AuthStatus;
+}
+
+export interface AuthUpdateAPISecretRequest {
+  expires_at?: string;
+  name?: string;
 }
 
 export interface CategoryCategory {
