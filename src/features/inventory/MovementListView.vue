@@ -14,6 +14,7 @@ import {
   zhCN,
 } from 'naive-ui'
 import { computed, h, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
 import { inventoryApi } from '@/api/inventory'
@@ -51,6 +52,8 @@ interface SelectOption {
  * 表单编辑与查询解耦：用户改了条件但没点「查询」时，「加载更多」仍必须按**上一次查询**
  * 的条件取下一页，否则两页数据来自不同条件，拼在一起会前后矛盾。
  */
+const router = useRouter()
+
 const filters = reactive<MovementFilters>({
   warehouseId: null,
   skuId: null,
@@ -192,12 +195,38 @@ const columns: DataTableColumn<InventoryMovement>[] = [
     exportValue: (row) => formatMovementActor(row),
   },
   {
+    key: 'trace_id',
+    title: '追踪 ID',
+    width: 190,
+    sortable: false,
+    render: (row) => {
+      const traceID = row.trace_id
+      if (!traceID) return '-'
+      return h(
+        NButton,
+        {
+          text: true,
+          type: 'primary',
+          size: 'small',
+          'aria-label': `查看追踪 ${traceID} 的审计日志`,
+          onClick: () => openAuditLog(traceID),
+        },
+        { default: () => traceID },
+      )
+    },
+    exportValue: (row) => row.trace_id ?? '-',
+  },
+  {
     key: 'idempotency_key',
     title: '幂等键',
     width: 240,
     sortable: false,
   },
 ]
+
+function openAuditLog(traceID: string) {
+  void router.push({ name: 'audit-logs', query: { trace_id: traceID } })
+}
 
 const loadedHint = computed(() => {
   if (loading.value) return '加载中…'

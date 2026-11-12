@@ -231,6 +231,8 @@ export interface InventoryMovement {
   actor_type: 'admin' | 'api_app' | null
   actor_id: number | null
   actor_label: string | null
+  /** 请求追踪 ID；历史流水为 null，可通过它关联审计日志 */
+  trace_id?: string | null
   created_at: string
 }
 

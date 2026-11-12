@@ -18,6 +18,7 @@ interface MovementOptions {
   reservation_id?: number | null
   source_type?: string | null
   actor_label?: string | null
+  trace_id?: string | null
 }
 
 function movement(id: number, options: MovementOptions = {}) {
@@ -27,6 +28,7 @@ function movement(id: number, options: MovementOptions = {}) {
     reservation_id = null,
     source_type = null,
     actor_label = 'admin',
+    trace_id = null,
   } = options
   return {
     id,
@@ -45,6 +47,7 @@ function movement(id: number, options: MovementOptions = {}) {
     actor_type: 'admin',
     actor_id: 1,
     actor_label,
+    trace_id,
     created_at: '2026-10-27T10:41:27+08:00',
   }
 }
@@ -164,6 +167,55 @@ test.describe('库存流水（桌面）', () => {
     ).toBeVisible()
     await expect(page.locator('td[data-col-key="reservation_id"]')).toHaveText('#5')
     await expect(page.locator('td[data-col-key="batch_id"]')).toHaveText('无批次')
+  })
+
+  test('opens the audit log by clicking a movement trace id', async ({ page }) => {
+    await mockApi(page, [
+      ...referenceRoutes(),
+      listRoute([
+        movement(1, {
+          operation_type: 'increase',
+          actor_label: 'app_wms',
+          trace_id: 'req_movement_1',
+        }),
+      ]),
+      {
+        method: 'GET',
+        path: '/audit/logs',
+        respond: (route) =>
+          route.fulfill({
+            json: ok({
+              items: [
+                {
+                  id: 1,
+                  occurred_at: '2026-10-27T10:41:20Z',
+                  trace_id: 'req_movement_1',
+                  method: 'POST',
+                  path: '/api/v1/inventory/increase',
+                  route: '/api/v1/inventory/increase',
+                  status_code: 200,
+                  latency_ms: 8,
+                  auth_method: 'api_app',
+                  actor_type: 'api_app',
+                  actor_id: 9,
+                  actor_label: 'app_wms',
+                  client_ip: '192.0.2.30',
+                  request_bytes: 0,
+                  response_bytes: 256,
+                },
+              ],
+              next_cursor: '',
+            }),
+          }),
+      },
+    ])
+
+    await page.goto('/inventory/movements')
+    await page.getByRole('button', { name: '查看追踪 req_movement_1 的审计日志' }).click()
+
+    await expect(page).toHaveURL('/settings/audit-logs?trace_id=req_movement_1')
+    await expect(page.getByRole('heading', { level: 1, name: '审计日志' })).toBeVisible()
+    await expect(page.getByText('app_wms (#9)')).toBeVisible()
   })
 
   test('opens the reservation detail drawer by clicking the reservation id', async ({ page }) => {

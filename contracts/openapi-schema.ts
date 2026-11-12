@@ -319,6 +319,7 @@ export interface InventoryMovement {
   source_line_id?: string;
   source_type?: string;
   stock_layer_id?: number;
+  trace_id?: string;
   warehouse_id?: number;
 }
 

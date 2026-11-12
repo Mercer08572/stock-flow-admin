@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { RotateCcw, Search } from '@lucide/vue'
 import { NButton, NDatePicker, NInput, NInputNumber, NSelect, NTag, useMessage } from 'naive-ui'
-import { computed, h, onMounted, ref } from 'vue'
+import { computed, h, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { auditApi, type AuditLogQuery } from '@/api/audit'
 import { getErrorDetail, getErrorMessage, type ErrorDetail } from '@/api/error'
@@ -21,15 +22,19 @@ import {
 import type { AuditAuthMethod, AuditLog } from '@/types/api'
 
 const message = useMessage()
+const route = useRoute()
+const router = useRouter()
 
 const pageSize = 50
 
-const range = ref<number | [number, number] | null>(defaultRange())
+const initialTraceID = typeof route.query.trace_id === 'string' ? route.query.trace_id : ''
+const range = ref<number | [number, number] | null>(initialTraceID ? null : defaultRange())
 const authMethod = ref<AuditAuthMethod | null>(null)
 const actorLabel = ref('')
 const clientIP = ref('')
 const statusCode = ref<number | null>(null)
 const path = ref('')
+const traceID = ref(initialTraceID)
 
 const rows = ref<AuditLog[]>([])
 const loading = ref(false)
@@ -144,6 +149,7 @@ function buildQuery(cursor?: string): AuditLogQuery {
   if (clientIP.value.trim()) query.client_ip = clientIP.value.trim()
   if (statusCode.value !== null) query.status_code = statusCode.value
   if (path.value.trim()) query.path = path.value.trim()
+  if (traceID.value.trim()) query.trace_id = traceID.value.trim()
   if (cursor) query.cursor = cursor
   return query
 }
@@ -189,8 +195,30 @@ function reset() {
   clientIP.value = ''
   statusCode.value = null
   path.value = ''
+  traceID.value = ''
+  // 清掉路由里的 trace_id，否则从流水页再次点同一个 trace 链接会是一次无变化的导航，
+  // 页面不会重新应用过滤条件。
+  if (route.query.trace_id !== undefined) {
+    const query = { ...route.query }
+    delete query.trace_id
+    void router.replace({ query })
+  }
   void search()
 }
+
+watch(
+  () => route.query.trace_id,
+  (value) => {
+    const next = typeof value === 'string' ? value : ''
+    if (next === traceID.value) return
+    traceID.value = next
+    if (next) {
+      // 从流水跳转过来时 trace 可能不在最近 24 小时内；交给后端按保留期查询。
+      range.value = null
+    }
+    void search()
+  },
+)
 
 onMounted(() => {
   void search()
@@ -274,6 +302,16 @@ onMounted(() => {
           v-model:value="path"
           clearable
           placeholder="例如 /api/v1/inventory/stocks"
+          @keyup.enter="search"
+        />
+      </div>
+
+      <div class="filter-item filter-trace">
+        <span class="filter-label">追踪 ID</span>
+        <NInput
+          v-model:value="traceID"
+          clearable
+          placeholder="例如 req_abcd1234"
           @keyup.enter="search"
         />
       </div>

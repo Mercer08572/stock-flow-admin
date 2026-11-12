@@ -157,6 +157,19 @@ test('sends the selected filters to the audit API', async ({ page }) => {
   expect(query?.get('status_code')).toBe('401')
 })
 
+test('applies trace_id from the route and omits the default time range', async ({ page }) => {
+  const state: MockState = { failOnce: false, queries: [] }
+  await mockApi(page, auditRoutes(state))
+
+  await page.goto('/settings/audit-logs?trace_id=req_movement_1')
+  await expect(page.getByRole('cell', { name: '管理员会话' })).toBeVisible()
+
+  const query = state.queries[0]
+  expect(query?.get('trace_id')).toBe('req_movement_1')
+  expect(query?.get('from')).toBeNull()
+  expect(query?.get('to')).toBeNull()
+})
+
 test('shows an error with retry when the audit API fails', async ({ page }) => {
   const state: MockState = { failOnce: true, queries: [] }
   await mockApi(page, auditRoutes(state))

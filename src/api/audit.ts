@@ -12,6 +12,7 @@ export interface AuditLogQuery {
   client_ip?: string
   status_code?: number
   path?: string
+  trace_id?: string
   limit?: number
   cursor?: string
 }
