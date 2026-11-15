@@ -155,3 +155,16 @@ views/components -> feature stores and API modules -> api/client -> stock-flow A
   页面仍只声明列描述。要求：行键必须稳定且唯一（传业务主键，不要用数组下标），且必须设置 `max-height`
   —— 适配层已固定提供。滚动追加下一页用适配层再下发的 `scroll` 事件，并保留「加载更多」按钮兜底：
   矮视口与键盘操作下滚动事件不一定触发。
+
+## 引用快照
+
+列表与详情里出现的「物料 / 单位 / 分类 / 仓库 / SKU」等关联列，**渲染后端随行返回的引用快照**，
+不在前端按 ID 去查另一张表再自行拼接。
+
+- 后端响应里有关联对象（`material` / `unit` / `category` / `base_unit` / `from_unit` / `warehouse` / `sku` …），
+  形状是 `Reference`：`{ id, code, name, deleted, status? }`。
+- 渲染统一走 `src/components/common/reference-display.ts` 的 `referenceCode` / `referenceName` / `referenceLabel`：
+  名称后会带 `（已删除）` / `（已停用）` 标记；关联字段整体缺失时回退 `#<id>`，不允许留空。
+- 只有**下拉候选**才需要整表取数：表单抽屉的 `optionsSource`（走 `reference-cache.ts`）、
+  SKU 单位可公度下拉与换算目标单位（走 `unit-catalog.ts`）、库存与流水的筛选下拉。
+  这类请求是「给用户可选项」，与展示无关，不要和引用列混在一起。
