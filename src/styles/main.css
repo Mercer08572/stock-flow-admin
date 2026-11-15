@@ -76,3 +76,48 @@ select {
     padding: 16px;
   }
 }
+
+/*
+ * 引用型下拉（`components/common/ReferenceSelect.vue`）的选项排版。
+ *
+ * 下拉面板由 Naive 传送到 body，组件的 scoped 样式够不到，只能写成全局规则；
+ * `.ref-select-menu` 只由该组件通过 `menu-props.class` 使用，不会波及其它下拉。
+ *
+ * Naive 默认给选项内容加了 `white-space: nowrap; text-overflow: ellipsis`，
+ * 这里放开换行，让「名称」在面板封顶后仍能完整显示，而不是变成省略号。
+ * 选择器多带一级 `.n-base-select-option` 是为了压过 Naive 运行时注入的同名规则
+ * （`cE('content')` 生成的是 `.n-base-select-option .n-base-select-option__content`，
+ * 同为两级选择器时后注入的样式会赢）。
+ */
+.ref-select-menu .n-base-select-option .n-base-select-option__content {
+  white-space: normal;
+  text-overflow: clip;
+}
+
+.ref-select-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.ref-select-option__name {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ref-select-option__code {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

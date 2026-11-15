@@ -18,17 +18,22 @@ import {
   NFormItem,
   NInput,
   NInputNumber,
-  NSelect,
   useMessage,
 } from 'naive-ui'
 
 import { getErrorDetail, getErrorMessage, type ErrorDetail } from '@/api/error'
 import AsyncState from '@/components/common/AsyncState.vue'
+import ReferenceSelect from '@/components/common/ReferenceSelect.vue'
+import type {
+  ReferenceSelectQuery,
+  ReferenceSelectPage,
+} from '@/components/common/reference-select'
 import {
   buildPayload,
   createEmptyForm,
   fillForm,
   findMissingRequired,
+  mergeReferenceOptions,
   referenceSources,
   resolveFieldOptions,
   type FieldConfig,
@@ -36,6 +41,7 @@ import {
   type FormValues,
 } from '@/features/master-data/lib/entity-form'
 import { loadReferenceOptions } from '@/features/master-data/lib/reference-cache'
+import { searchReferenceOptions } from '@/features/master-data/lib/reference-search'
 
 const props = withDefaults(
   defineProps<{
@@ -110,7 +116,10 @@ async function loadForm() {
     // 新增模式不能再 fillForm 一次：那会把 createEmptyForm 的默认值（status=active）清空
     const targetId = props.entityId
     if (props.mode === 'edit' && targetId !== null) {
-      form.value = fillForm([...props.fields], await props.load(targetId))
+      const entity = await props.load(targetId)
+      form.value = fillForm([...props.fields], entity)
+      // 详情里的引用快照兜底：已选值可能不在候选列表里（超出首页 / 已停用 / 已删除）
+      optionsBySource.value = mergeReferenceOptions(props.fields, optionsBySource.value, entity)
     }
   } catch (error) {
     detailError.value = getErrorDetail(error)
@@ -127,6 +136,18 @@ async function loadReferenceData(
     referenceSources(fields).map(async (key) => [key, await loadReferenceOptions(key)] as const),
   )
   return Object.fromEntries(entries)
+}
+
+/**
+ * 引用型字段的远程搜索；静态枚举（status 等）没有 `optionsSource`，
+ * 返回 `null` 让它继续走本地过滤。
+ */
+function remoteOptionsFor(
+  field: FieldConfig,
+): ((query: ReferenceSelectQuery) => Promise<ReferenceSelectPage<number>>) | null {
+  const source = field.optionsSource
+  if (!source) return null
+  return (query) => searchReferenceOptions(source, query)
 }
 
 function retryDetail() {
@@ -192,10 +213,11 @@ async function submit() {
               :disabled="field.disabled === true"
               :placeholder="field.placeholder"
             />
-            <NSelect
+            <ReferenceSelect
               v-else-if="field.type === 'select'"
               v-model:value="form[field.key]"
-              :options="field.options"
+              :options="field.options ?? []"
+              :remote="remoteOptionsFor(field)"
               :disabled="field.disabled === true"
               filterable
               :placeholder="`请选择${field.label}`"

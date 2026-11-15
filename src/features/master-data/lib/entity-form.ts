@@ -10,12 +10,19 @@
  * 因此纯逻辑集中在这里，由 `components/EntityFormDrawer.vue` 与各资源的 `*.ts` 共用。
  */
 
+import { referenceLabel, referenceName } from '@/components/common/reference-display'
+
+import type { Reference } from '@/types/api'
+
 export type FieldType = 'text' | 'number' | 'textarea' | 'select'
 
 export interface FieldOption {
   label: string
   /** 枚举用字符串；引用型下拉（分类 / 单位 / 物料）用数字 ID */
   value: string | number
+  /** 引用型下拉的编码与名称，供两行展示；静态枚举没有这两个字段 */
+  code?: string
+  name?: string
 }
 
 /** 引用型下拉的取数来源，与 `lib/reference-cache.ts` 的加载函数一一对应 */
@@ -33,6 +40,13 @@ export interface FieldConfig {
   options?: FieldOption[]
   /** 动态选项来源；与 `options` 二选一 */
   optionsSource?: ReferenceKey
+  /**
+   * 详情响应里对应的内联引用快照字段名（如 `category`、`base_unit`）。
+   *
+   * 编辑时用它兜底回显：候选选项只含启用记录、且只有一页，引用的主数据可能在
+   * 超出候选的一页、已停用或已软删除，`NSelect` 找不到 label 就会把值显示成数字 ID。
+   */
+  referenceField?: string
   /** 锁定字段：值仍随表单提交，但用户不可编辑（如详情页里的「物料」） */
   disabled?: boolean
   /**
@@ -112,6 +126,67 @@ export function referenceSources(fields: readonly FieldConfig[]): ReferenceKey[]
     .filter((key): key is ReferenceKey => key !== undefined)
 
   return [...new Set(keys)]
+}
+
+/**
+ * 把详情接口内联的引用快照补进候选选项。
+ *
+ * 候选选项只含启用记录、且只有一页；编辑时引用的主数据可能在超出候选的一页、
+ * 已停用或已软删除，`NSelect` 找不到 label 就会把值显示成数字 ID。
+ * 详情响应本来就带 `category` / `base_unit` 等快照，用它补一条即可，不需要额外请求。
+ *
+ * 返回新对象、新数组：`optionsBySource` 里可能是 `reference-cache` 的缓存数组，
+ * 原地 push 会污染缓存，影响下一次打开表单。
+ */
+export function mergeReferenceOptions(
+  fields: readonly FieldConfig[],
+  optionsBySource: Record<string, FieldOption[]>,
+  entity: Record<string, unknown> | null,
+): Record<string, FieldOption[]> {
+  if (!entity) return optionsBySource
+
+  const merged: Record<string, FieldOption[]> = {}
+
+  for (const field of fields) {
+    const source = field.optionsSource
+    const snapshotKey = field.referenceField
+    if (!source || !snapshotKey) continue
+
+    const snapshot = entity[snapshotKey]
+    if (!isReferenceSnapshot(snapshot)) continue
+
+    const current = merged[source] ?? optionsBySource[source] ?? []
+    if (current.some((option) => option.value === snapshot.id)) {
+      merged[source] = current
+      continue
+    }
+
+    merged[source] = [referenceOption(snapshot), ...current]
+  }
+
+  if (Object.keys(merged).length === 0) return optionsBySource
+  return { ...optionsBySource, ...merged }
+}
+
+/** 快照 → 选项：标签与列表列共用「编码 - 名称（已停用/已删除）」的约定 */
+function referenceOption(reference: Reference): FieldOption {
+  return {
+    label: referenceLabel(reference, reference.id),
+    value: reference.id,
+    code: reference.code,
+    name: referenceName(reference, reference.id),
+  }
+}
+
+function isReferenceSnapshot(value: unknown): value is Reference {
+  if (typeof value !== 'object' || value === null) return false
+
+  const candidate = value as Partial<Reference>
+  return (
+    typeof candidate.id === 'number' &&
+    typeof candidate.code === 'string' &&
+    typeof candidate.name === 'string'
+  )
 }
 
 /**

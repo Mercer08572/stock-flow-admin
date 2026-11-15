@@ -11,6 +11,8 @@
  *    字段可能整体缺失，也可能带着 `deleted: true` 保留。渲染交接给 `reference-display`。
  */
 
+import type { ReferenceSelectOption } from '@/components/common/reference-select'
+
 /** 后端 `MaxListLimit` */
 export const STOCK_PAGE_SIZE = 100
 
@@ -40,9 +42,19 @@ export function buildStockQuery(
   }
 }
 
-/** 下拉选项：标签同时给出编码与名称，避免用户只看得到数字 ID */
+/**
+ * 下拉选项：标签同时给出编码与名称，避免用户只看得到数字 ID。
+ *
+ * `code` / `name` 单独保留一份，供 `ReferenceSelect` 两行展示；
+ * `label` 仍是「编码 - 名称」，它同时承担 `filterable` 的匹配文本。
+ */
 export function toSelectOptions(
   items: Array<{ id: number; code: string; name: string }>,
-): Array<{ label: string; value: number }> {
-  return items.map((item) => ({ label: `${item.code} - ${item.name}`, value: item.id }))
+): ReferenceSelectOption<number>[] {
+  return items.map((item) => ({
+    label: `${item.code} - ${item.name}`,
+    value: item.id,
+    code: item.code,
+    name: item.name,
+  }))
 }

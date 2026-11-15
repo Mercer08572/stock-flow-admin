@@ -340,10 +340,11 @@ test.describe('库存流水（桌面）', () => {
     await page.goto('/inventory/movements')
     await expect.poll(() => queries.length).toBeGreaterThan(0)
 
+    // 引用型下拉按「名称 / 编码」两行渲染，按名称定位选项
     await page.locator('.filters .n-select').nth(0).click()
-    await page.locator('.n-base-select-option').filter({ hasText: 'WH-01 - 主仓' }).click()
+    await page.locator('.n-base-select-option').filter({ hasText: '主仓' }).click()
     await page.locator('.filters .n-select').nth(1).click()
-    await page.locator('.n-base-select-option').filter({ hasText: 'SKU-01 - 标准箱' }).click()
+    await page.locator('.n-base-select-option').filter({ hasText: '标准箱' }).click()
     await page.locator('.filters .n-select').nth(2).click()
     // 「预留」是「释放预留」「扣减预留」的子串，必须精确匹配
     await page

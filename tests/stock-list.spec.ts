@@ -71,9 +71,120 @@ test('filters stock with searchable selects instead of raw ids', async ({ page }
 
   // 下拉选项必须带编码与名称，用户不可能知道数字 ID
   await page.locator('.filters .n-select').first().click()
-  await expect(
-    page.locator('.n-base-select-option').filter({ hasText: 'WH-01 - 主仓' }),
-  ).toBeVisible()
+  const warehouseOption = page.locator('.n-base-select-option').filter({ hasText: '主仓' })
+  await expect(warehouseOption).toBeVisible()
+  // 名称与编码分两行展示：长名称不再被「...」截断
+  await expect(warehouseOption.locator('.ref-select-option__name')).toHaveText('主仓')
+  await expect(warehouseOption.locator('.ref-select-option__code')).toHaveText('WH-01')
+})
+
+test('searches SKUs on the server instead of filtering the prefetched page', async ({ page }) => {
+  const longSku = { id: 42, code: 'SKU-OIL-42', name: '特级初榨橄榄油 500ml 玻璃瓶装' }
+  const keywords: string[] = []
+  const stockQueries: string[] = []
+
+  await mockApi(page, [
+    ...referenceRoutes().slice(0, 1),
+    {
+      method: 'GET',
+      path: '/skus',
+      respond: (route) => {
+        const keyword = new URL(route.request().url()).searchParams.get('q')
+        if (keyword === null) {
+          return route.fulfill({ json: ok({ items: [sku], total: 1, limit: 100, offset: 0 }) })
+        }
+        keywords.push(keyword)
+        const items = longSku.name.includes(keyword) ? [longSku] : []
+        return route.fulfill({
+          json: ok({ items, total: items.length, limit: 50, offset: 0 }),
+        })
+      },
+    },
+    {
+      method: 'GET',
+      path: '/inventory/stocks',
+      respond: (route) => {
+        stockQueries.push(new URL(route.request().url()).search)
+        return route.fulfill({
+          json: ok({ items: [balance(100)], total: 1, limit: 100, offset: 0 }),
+        })
+      },
+    },
+  ])
+
+  await page.goto('/inventory/stocks')
+  await expect(page.getByRole('cell', { name: 'SKU-01', exact: true })).toBeVisible()
+
+  // 首屏只预取一页；第 101 条之后的数据只能靠服务端关键字搜索
+  await page.locator('.filters .n-select').nth(1).click()
+  await page.locator('.filters .n-select input').nth(1).fill('橄榄油')
+
+  await expect.poll(() => keywords).toContain('橄榄油')
+  const skuOption = page.locator('.n-base-select-option').filter({ hasText: '特级初榨橄榄油' })
+  await expect(skuOption).toBeVisible()
+
+  // 选中的必须是服务端搜到的那条（id 42），而不是首屏预取的 SKU
+  await skuOption.click()
+  await page.getByRole('button', { name: '查询' }).click()
+  await expect.poll(() => stockQueries.join('&')).toContain('sku_id=42')
+})
+
+test('loads more SKUs when the dropdown is scrolled to the bottom', async ({ page }) => {
+  const offsets: number[] = []
+  const totalSkus = 120
+  const skuAt = (id: number) => ({
+    id,
+    code: `SKU-${String(id).padStart(3, '0')}`,
+    name: `测试物料 ${id}`,
+    material_id: 1,
+    unit_id: 1,
+    status: 'active',
+    created_at: '2026-09-01T10:00:00Z',
+    updated_at: '2026-09-01T10:00:00Z',
+  })
+
+  await mockApi(page, [
+    ...referenceRoutes().slice(0, 1),
+    {
+      method: 'GET',
+      path: '/skus',
+      respond: (route) => {
+        const url = new URL(route.request().url())
+        const offset = Number(url.searchParams.get('offset') ?? '0')
+        const limit = Number(url.searchParams.get('limit') ?? '20')
+        offsets.push(offset)
+        const items = []
+        for (let id = offset + 1; id <= Math.min(offset + limit, totalSkus); id += 1) {
+          items.push(skuAt(id))
+        }
+        return route.fulfill({ json: ok({ items, total: totalSkus, limit, offset }) })
+      },
+    },
+    {
+      method: 'GET',
+      path: '/inventory/stocks',
+      respond: (route) =>
+        route.fulfill({ json: ok({ items: [balance(100)], total: 1, limit: 100, offset: 0 }) }),
+    },
+  ])
+
+  await page.goto('/inventory/stocks')
+  await page.locator('.filters .n-select').nth(1).click()
+
+  const options = page.locator('.n-base-select-option')
+  await expect(options).toHaveCount(20)
+
+  // 滚到底部：追加下一页，而不是清空重来
+  const scrollContainer = page.locator('.n-base-select-menu .n-scrollbar-container')
+  await scrollContainer.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+
+  await expect.poll(() => offsets).toContain(20)
+  await expect(options).toHaveCount(70)
+
+  // 追加而不是重建：滚动位置没有被重置回顶部
+  expect(await scrollContainer.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
 })
 
 test('shows the total and jumps pages by number and quick jumper', async ({ page }) => {

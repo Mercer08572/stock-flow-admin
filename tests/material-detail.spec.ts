@@ -469,3 +469,31 @@ test('edits the material from its detail page with the base unit locked', async 
     status: 'active',
   })
 })
+
+test('echoes a category that is missing from the candidate list', async ({ page }) => {
+  // 候选分类只含启用记录、且只有一页；引用的分类已停用 / 不在首页时，
+  // 必须用详情响应里的快照回显，而不是显示成数字 ID。
+  const staleCategory = {
+    id: 87,
+    code: 'CAT-87',
+    name: '老分类',
+    deleted: false,
+    status: 'inactive',
+  }
+  const staleMaterial = { ...material, category_id: 87, category: staleCategory }
+
+  await mockApi(
+    page,
+    detailRoutes(() => {}).map((route) =>
+      route.method === 'GET' && route.path === '/materials/:id'
+        ? { ...route, respond: (request) => request.fulfill({ json: ok(staleMaterial) }) }
+        : route,
+    ),
+  )
+
+  await page.goto(`/master-data/materials/${MATERIAL_ID}`)
+  await page.getByRole('button', { name: '编辑物料' }).click()
+
+  const drawer = page.locator('.n-drawer')
+  await expect(selectionLabel(drawer, '分类')).toHaveText('CAT-87 - 老分类（已停用）')
+})

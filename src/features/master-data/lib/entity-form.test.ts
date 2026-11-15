@@ -5,6 +5,7 @@ import {
   createEmptyForm,
   fillForm,
   findMissingRequired,
+  mergeReferenceOptions,
   referenceSources,
   resolveFieldOptions,
   type FieldConfig,
@@ -258,5 +259,98 @@ describe('引用型选项', () => {
       { label: 'KG - 千克', value: 1 },
     ])
     expect(fields.find((field) => field.key === 'status')?.options).toBeUndefined()
+  })
+})
+
+describe('编辑回显的引用快照', () => {
+  const echoFields: FieldConfig[] = [
+    {
+      key: 'category_id',
+      label: '分类',
+      type: 'select',
+      optionsSource: 'categories',
+      referenceField: 'category',
+    },
+    {
+      key: 'base_unit_id',
+      label: '基础单位',
+      type: 'select',
+      optionsSource: 'units',
+      referenceField: 'base_unit',
+    },
+  ]
+
+  it('把候选列表里没有的已选值补成选项，并标记停用', () => {
+    const merged = mergeReferenceOptions(
+      echoFields,
+      { categories: [{ label: 'CAT-01 - 新分类', value: 1 }] },
+      {
+        category: { id: 87, code: 'CAT-87', name: '老分类', status: 'inactive', deleted: false },
+      },
+    )
+
+    expect(merged.categories).toEqual([
+      {
+        label: 'CAT-87 - 老分类（已停用）',
+        value: 87,
+        code: 'CAT-87',
+        name: '老分类（已停用）',
+      },
+      { label: 'CAT-01 - 新分类', value: 1 },
+    ])
+  })
+
+  it('已删除的引用同样能回显', () => {
+    const merged = mergeReferenceOptions(
+      echoFields,
+      { units: [{ label: 'KG - 千克', value: 3 }] },
+      { base_unit: { id: 9, code: 'OLD', name: '旧单位', status: 'active', deleted: true } },
+    )
+
+    expect(merged.units?.[0]).toEqual({
+      label: 'OLD - 旧单位（已删除）',
+      value: 9,
+      code: 'OLD',
+      name: '旧单位（已删除）',
+    })
+  })
+
+  it('快照已经在候选里时保持原顺序、不重复', () => {
+    const existing = [
+      { label: 'CAT-87 - 老分类', value: 87, code: 'CAT-87', name: '老分类' },
+      { label: 'CAT-01 - 新分类', value: 1 },
+    ]
+    const merged = mergeReferenceOptions(
+      echoFields,
+      { categories: existing },
+      {
+        category: { id: 87, code: 'CAT-87', name: '老分类', status: 'active', deleted: false },
+      },
+    )
+
+    expect(merged.categories).toBe(existing)
+  })
+
+  it('不修改传入的候选数组（可能是 reference-cache 的缓存）', () => {
+    const optionsBySource = { categories: [{ label: 'CAT-01 - 新分类', value: 1 }] }
+    mergeReferenceOptions(echoFields, optionsBySource, {
+      category: { id: 87, code: 'CAT-87', name: '老分类', status: 'active', deleted: false },
+    })
+
+    expect(optionsBySource.categories).toHaveLength(1)
+  })
+
+  it('没有详情或字段没声明 referenceField 时原样返回', () => {
+    const optionsBySource = { categories: [{ label: 'CAT-01 - 新分类', value: 1 }] }
+    expect(mergeReferenceOptions(echoFields, optionsBySource, null)).toBe(optionsBySource)
+
+    const withoutSnapshot: FieldConfig[] = [
+      { key: 'category_id', label: '分类', type: 'select', optionsSource: 'categories' },
+    ]
+    expect(
+      mergeReferenceOptions(withoutSnapshot, optionsBySource, {
+        category: { id: 87, code: 'CAT-87', name: '老分类', status: 'active', deleted: false },
+      }),
+    ).toBe(optionsBySource)
   })
 })

@@ -36,6 +36,7 @@ export const skuFields: readonly FieldConfig[] = [
     type: 'select',
     required: true,
     optionsSource: 'materials',
+    referenceField: 'material',
     placeholder: '请选择物料',
   },
   {
@@ -44,6 +45,7 @@ export const skuFields: readonly FieldConfig[] = [
     type: 'select',
     required: true,
     optionsSource: 'units',
+    referenceField: 'unit',
     placeholder: '请选择单位',
   },
   { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },

@@ -3,8 +3,14 @@ import { api } from './client'
 import type { CreateSkuInput, ListResult, SKU, UpdateSkuInput } from '@/types/api'
 
 export const skusApi = {
-  list: (query: { status?: string; material_id?: number; limit?: number; offset?: number }) =>
-    api.get<ListResult<SKU>>('/skus', query),
+  list: (query: {
+    status?: string
+    material_id?: number
+    /** 按编码或名称模糊搜索 */
+    q?: string
+    limit?: number
+    offset?: number
+  }) => api.get<ListResult<SKU>>('/skus', query),
   get: (id: number) => api.get<SKU>(`/skus/${id}`),
   create: (body: CreateSkuInput) => api.post<SKU>('/skus', body),
   update: (id: number, body: UpdateSkuInput) => api.put<SKU>(`/skus/${id}`, body),

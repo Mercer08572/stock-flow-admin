@@ -32,6 +32,7 @@ export const materialFields: readonly FieldConfig[] = [
     type: 'select',
     required: true,
     optionsSource: 'categories',
+    referenceField: 'category',
     placeholder: '请选择分类',
   },
   {
@@ -40,6 +41,7 @@ export const materialFields: readonly FieldConfig[] = [
     type: 'select',
     required: true,
     optionsSource: 'units',
+    referenceField: 'base_unit',
     placeholder: '请选择基础单位',
   },
   { key: 'remark', label: '备注', type: 'textarea', placeholder: '可选' },

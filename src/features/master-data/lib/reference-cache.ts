@@ -1,10 +1,13 @@
 /**
  * 引用型下拉选项的进程内缓存。
  *
- * 为什么需要：物料列表一屏 100 行 × 2 个引用列（分类 / 基础单位），
- * 若每行各自取数会造成请求风暴；抽屉与表格又要用同一份数据。
+ * 为什么需要：主数据表单里同一类引用（分类 / 单位 / 物料）会被多个字段、多次打开复用；
+ * 没有缓存就会在每次打开抽屉时重复请求。列表页的引用列不走这里——它们用的是后端
+ * 随行内联的快照。
+ *
  * 缓存的另一面是**新鲜度**：新建的分类/单位不会立刻出现在已缓存的选项里，
- * 后续若需要，应在这里加显式失效而不是把缓存删掉。
+ * 后续若需要，应在这里加显式失效而不是把缓存删掉（列表刷新时已调用
+ * `clearReferenceOptions`）。
  *
  * 失败不入缓存：一次网络抖动不应让整个页面永远拿不到选项。
  */
@@ -15,8 +18,14 @@ import { unitsApi } from '@/api/units'
 
 import type { FieldOption, ReferenceKey } from '@/features/master-data/lib/entity-form'
 
-/** 后端 `MaxListLimit`：引用选项按此上限取数 */
-export const REFERENCE_LIST_LIMIT = 100
+/**
+ * 首屏引用选项的预取上限（后端 `MaxListLimit`）。
+ *
+ * 编辑回显不依赖这个上限：详情响应内联了引用快照，`mergeReferenceOptions` 会把
+ * 「不在候选列表里」的已选值补成选项。因此这里只服务「新增时打开即有候选」，
+ * 与库存筛选下拉一样取一小页即可；更多由滚动分页与关键字搜索补齐。
+ */
+export const REFERENCE_LIST_LIMIT = 20
 
 /**
  * 只列启用中的引用。
@@ -41,9 +50,14 @@ const loaders: Record<ReferenceKey, () => Promise<{ items: ReferenceItem[] }>> =
 
 const cache = new Map<ReferenceKey, Promise<FieldOption[]>>()
 
-/** 标签同时给出编码与名称，避免用户只看得到数字 ID */
+/** 标签同时给出编码与名称，避免用户只看得到数字 ID；`code`/`name` 供下拉两行展示 */
 export function toReferenceOptions(items: ReferenceItem[]): FieldOption[] {
-  return items.map((item) => ({ label: `${item.code} - ${item.name}`, value: item.id }))
+  return items.map((item) => ({
+    label: `${item.code} - ${item.name}`,
+    value: item.id,
+    code: item.code,
+    name: item.name,
+  }))
 }
 
 /** 取某类引用选项；并发调用共用同一次请求 */

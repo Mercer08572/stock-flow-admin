@@ -22,8 +22,10 @@ import { skusApi } from '@/api/skus'
 import { warehousesApi } from '@/api/warehouses'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
-import { referenceLabel } from '@/components/common/reference-display'
 import PageHeader from '@/components/common/PageHeader.vue'
+import ReferenceSelect from '@/components/common/ReferenceSelect.vue'
+import type { ReferenceSelectOption } from '@/components/common/reference-select'
+import { referenceLabel } from '@/components/common/reference-display'
 import ReservationDetailDrawer from '@/features/inventory/ReservationDetailDrawer.vue'
 import {
   buildMovementQuery,
@@ -37,14 +39,14 @@ import {
   OPERATION_TYPE_OPTIONS,
   type MovementFilters,
 } from '@/features/inventory/movement-list'
+import {
+  REFERENCE_OPTION_PREFETCH,
+  searchSkuOptions,
+  searchWarehouseOptions,
+} from '@/features/inventory/reference-options'
 import { toSelectOptions } from '@/features/inventory/stock-list'
 
 import type { InventoryMovement } from '@/types/api'
-
-interface SelectOption {
-  label: string
-  value: number
-}
 
 /**
  * 已生效的筛选条件快照。
@@ -84,8 +86,8 @@ const listVersion = ref(0)
 const reservationDetailOpen = ref(false)
 const selectedReservationId = ref<number | null>(null)
 
-const warehouseOptions = ref<SelectOption[]>([])
-const skuOptions = ref<SelectOption[]>([])
+const warehouseOptions = ref<ReferenceSelectOption<number>[]>([])
+const skuOptions = ref<ReferenceSelectOption<number>[]>([])
 const optionsError = ref('')
 
 /**
@@ -310,18 +312,18 @@ function onTableScroll(event: Event) {
 }
 
 /**
- * 加载筛选下拉的选项。
+ * 预取筛选下拉的首屏选项。
  *
- * 后端 `/warehouses` 与 `/skus` 都没有关键字搜索、`limit` 上限 100，
- * 所以这里只取前 100 条做本地可搜索下拉；失败不阻塞列表查询，
- * 仓库 / SKU 列退回展示 `#id`。
+ * 只取一小页（`REFERENCE_OPTION_PREFETCH`）：打开下拉立刻有内容、又不用等网络；
+ * 输入关键字或滚到底部时由 `ReferenceSelect` 走服务端搜索/分页。
+ * 失败不阻塞列表查询，仓库 / SKU 列退回展示 `#id`。
  */
 async function loadOptions() {
   optionsError.value = ''
   try {
     const [warehouseResult, skuResult] = await Promise.all([
-      warehousesApi.list({ limit: MOVEMENT_PAGE_SIZE, offset: 0 }),
-      skusApi.list({ limit: MOVEMENT_PAGE_SIZE, offset: 0 }),
+      warehousesApi.list({ limit: REFERENCE_OPTION_PREFETCH, offset: 0 }),
+      skusApi.list({ limit: REFERENCE_OPTION_PREFETCH, offset: 0 }),
     ])
     warehouseOptions.value = toSelectOptions(warehouseResult.items ?? [])
     skuOptions.value = toSelectOptions(skuResult.items ?? [])
@@ -390,20 +392,22 @@ onMounted(async () => {
       <section class="movement-panel panel">
         <NForm inline :show-feedback="false" class="filters" @submit.prevent="search">
           <NFormItem label="仓库">
-            <NSelect
+            <ReferenceSelect
               v-model:value="filters.warehouseId"
               class="filters__select"
               :options="warehouseOptions"
+              :remote="searchWarehouseOptions"
               filterable
               clearable
               placeholder="全部仓库"
             />
           </NFormItem>
           <NFormItem label="SKU">
-            <NSelect
+            <ReferenceSelect
               v-model:value="filters.skuId"
               class="filters__select"
               :options="skuOptions"
+              :remote="searchSkuOptions"
               filterable
               clearable
               placeholder="全部 SKU"

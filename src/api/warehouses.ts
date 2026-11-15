@@ -3,8 +3,14 @@ import { api } from './client'
 import type { CreateWarehouseInput, ListResult, UpdateWarehouseInput, Warehouse } from '@/types/api'
 
 export const warehousesApi = {
-  list: (query: { status?: string; type?: string; limit?: number; offset?: number }) =>
-    api.get<ListResult<Warehouse>>('/warehouses', query),
+  list: (query: {
+    status?: string
+    type?: string
+    /** 按编码或名称模糊搜索 */
+    q?: string
+    limit?: number
+    offset?: number
+  }) => api.get<ListResult<Warehouse>>('/warehouses', query),
   get: (id: number) => api.get<Warehouse>(`/warehouses/${id}`),
   create: (body: CreateWarehouseInput) => api.post<Warehouse>('/warehouses', body),
   update: (id: number, body: UpdateWarehouseInput) => api.put<Warehouse>(`/warehouses/${id}`, body),
