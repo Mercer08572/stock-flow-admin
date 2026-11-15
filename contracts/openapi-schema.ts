@@ -287,9 +287,12 @@ export interface ConversionListResult {
 export interface ConversionMaterialUnitConversion {
   created_at?: string;
   factor?: string;
+  /** 两端单位的引用快照，供客户端直接展示换算关系，无需再按 ID 二次查询。 */
+  from_unit?: ReferenceReference;
   from_unit_id?: number;
   id?: number;
   material_id?: number;
+  to_unit?: ReferenceReference;
   to_unit_id?: number;
   updated_at?: string;
 }
@@ -325,12 +328,15 @@ export interface InventoryMovement {
   qty?: string;
   reservation_id?: number;
   reservation_item_id?: number;
+  sku?: SkuReference;
   sku_id?: number;
   source_id?: string;
   source_line_id?: string;
   source_type?: string;
   stock_layer_id?: number;
   trace_id?: string;
+  /** 仓库与 SKU 的引用快照，供客户端直接展示流水归属，无需再按 ID 二次查询。 */
+  warehouse?: WarehouseReference;
   warehouse_id?: number;
 }
 
@@ -538,7 +544,13 @@ export interface MaterialListResult {
 }
 
 export interface MaterialMaterial {
+  base_unit?: ReferenceReference;
   base_unit_id?: number;
+  /**
+   * 列表与详情接口内联的引用快照，供客户端直接展示，无需再按 ID 二次查询。
+   * 写入接口不返回这两个字段。
+   */
+  category?: ReferenceReference;
   category_id?: number;
   code?: string;
   created_at?: string;
@@ -556,6 +568,14 @@ export interface MaterialUpdateMaterialRequest {
   name?: string;
   remark?: string;
   status?: MaterialStatus;
+}
+
+export interface ReferenceReference {
+  code?: string;
+  deleted?: boolean;
+  id?: number;
+  name?: string;
+  status?: string;
 }
 
 export interface ResponseBody {
@@ -589,16 +609,23 @@ export interface SkuReference {
   deleted?: boolean;
   id?: number;
   name?: string;
+  status?: string;
 }
 
 export interface SkuSKU {
   code?: string;
   created_at?: string;
   id?: number;
+  /**
+   * 列表与详情接口内联的引用快照，供客户端直接展示，无需再按 ID 二次查询。
+   * 写入接口不返回这两个字段。
+   */
+  material?: ReferenceReference;
   material_id?: number;
   name?: string;
   remark?: string;
   status?: SkuStatus;
+  unit?: ReferenceReference;
   unit_id?: number;
   updated_at?: string;
 }
@@ -672,6 +699,7 @@ export interface WarehouseReference {
   deleted?: boolean;
   id?: number;
   name?: string;
+  status?: string;
 }
 
 export interface WarehouseUpdateWarehouseRequest {
