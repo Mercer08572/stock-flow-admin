@@ -8,6 +8,7 @@ import { inventoryApi } from '@/api/inventory'
 import { skusApi } from '@/api/skus'
 import { warehousesApi } from '@/api/warehouses'
 import DataTable from '@/components/common/DataTable.vue'
+import { referenceCode, referenceName } from '@/components/common/reference-display'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ReservationDetailDrawer from '@/features/inventory/ReservationDetailDrawer.vue'
@@ -19,7 +20,7 @@ import {
   RESERVATION_PAGE_SIZE,
   type ReservationFilters,
 } from '@/features/inventory/reservation-list'
-import { referenceCode, referenceName, toSelectOptions } from '@/features/inventory/stock-list'
+import { toSelectOptions } from '@/features/inventory/stock-list'
 
 import type { Reference, Reservation, ReservationStatus } from '@/types/api'
 

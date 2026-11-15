@@ -1,12 +1,14 @@
 /**
- * 库存余额列表的纯逻辑：查询参数组装、引用回退、下拉选项。
+ * 库存余额列表的纯逻辑：查询参数组装与下拉选项。
+ *
+ * 引用快照的渲染见 `@/components/common/reference-display`。
  *
  * 契约约束（均已在后端核对）：
  * 1. `GET /inventory/stocks` 只接受 `warehouse_id` / `sku_id` / `limit` / `offset`；
  *    响应额外返回同条件下的 `total`，用于显示总数与页码跳转。
  * 2. 后端 `MaxListLimit = 100`，页大小不能超过它。
  * 3. `StockBalance.warehouse` / `sku` 是 `*Reference` + `omitempty`：主数据被软删除后
- *    字段可能整体缺失，也可能带着 `deleted: true` 保留。两种都要有可读回退。
+ *    字段可能整体缺失，也可能带着 `deleted: true` 保留。渲染交接给 `reference-display`。
  */
 
 /** 后端 `MaxListLimit` */
@@ -36,30 +38,6 @@ export function buildStockQuery(
     limit,
     offset: Math.max(0, offset),
   }
-}
-
-export interface StockReferenceLike {
-  id: number
-  code: string
-  name: string
-  deleted: boolean
-}
-
-/** 引用整体缺失时回退展示 ID，避免界面静默空白 */
-export function referenceCode(
-  reference: StockReferenceLike | undefined,
-  fallbackId: number,
-): string {
-  return reference?.code || `#${fallbackId}`
-}
-
-export function referenceName(
-  reference: StockReferenceLike | undefined,
-  fallbackId: number,
-): string {
-  if (!reference) return `#${fallbackId}`
-  const name = reference.name || `#${fallbackId}`
-  return reference.deleted ? `${name}（已删除）` : name
 }
 
 /** 下拉选项：标签同时给出编码与名称，避免用户只看得到数字 ID */

@@ -7,6 +7,7 @@ import { computed, h, ref, watch } from 'vue'
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
 import { inventoryApi } from '@/api/inventory'
 import AsyncState from '@/components/common/AsyncState.vue'
+import { referenceCode, referenceName } from '@/components/common/reference-display'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import {
@@ -23,7 +24,6 @@ import {
   formatReservationSource,
   reservationStatusLabel,
 } from '@/features/inventory/reservation-list'
-import { referenceCode, referenceName } from '@/features/inventory/stock-list'
 
 import type { InventoryMovement, Reservation, ReservationItem } from '@/types/api'
 

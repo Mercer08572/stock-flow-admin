@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  buildStockQuery,
-  referenceCode,
-  referenceName,
-  toSelectOptions,
-  STOCK_PAGE_SIZE,
-} from './stock-list'
+import { buildStockQuery, toSelectOptions, STOCK_PAGE_SIZE } from './stock-list'
 
 describe('buildStockQuery', () => {
   it('sends no id filters when both are empty', () => {
@@ -32,30 +26,6 @@ describe('buildStockQuery', () => {
     // 后端 MaxListLimit = 100，超过会被静默截断
     expect(STOCK_PAGE_SIZE).toBe(100)
     expect(buildStockQuery({ warehouseId: null, skuId: null }, 0).limit).toBe(100)
-  })
-})
-
-describe('reference fallback', () => {
-  const reference = { id: 5, code: 'WH-01', name: '主仓', deleted: false }
-
-  it('prefers the reference code', () => {
-    expect(referenceCode(reference, 5)).toBe('WH-01')
-    expect(referenceName(reference, 5)).toBe('主仓')
-  })
-
-  it('falls back to the id when the reference is missing entirely', () => {
-    // backend 的 *Reference + omitempty 会让字段整体消失
-    expect(referenceCode(undefined, 5)).toBe('#5')
-    expect(referenceName(undefined, 5)).toBe('#5')
-  })
-
-  it('marks a soft deleted reference', () => {
-    expect(referenceName({ ...reference, deleted: true }, 5)).toBe('主仓（已删除）')
-  })
-
-  it('falls back for a reference with blank fields', () => {
-    expect(referenceCode({ ...reference, code: '' }, 5)).toBe('#5')
-    expect(referenceName({ ...reference, name: '' }, 5)).toBe('#5')
   })
 })
 

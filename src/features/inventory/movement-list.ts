@@ -6,7 +6,7 @@
  *    `created_from` / `created_to` / `limit` / `offset`，响应带同条件 `total`。
  * 2. 后端 `MaxListLimit = 100`（默认 20），页大小不能超过它。
  * 3. `created_to` 是**开区间**（SQL 为 `created_at < created_to`），因此「截止到某天」要传次日零点。
- * 4. `Movement` 不内联 `warehouse` / `sku` 引用，只有 ID；名称要由筛选下拉的选项表反查。
+ * 4. `Movement` 内联 `warehouse` / `sku` 引用快照，展示不需要再按 ID 反查。
  * 5. `operation_type` 受 CHECK 约束与后端校验双重限制，只有下面 5 个取值。
  */
 
@@ -154,19 +154,6 @@ export function formatMovementActor(
   if (row.actor_type && row.actor_id !== null) return `${row.actor_type}#${row.actor_id}`
   if (row.actor_type) return row.actor_type
   return '-'
-}
-
-/**
- * 引用 ID → 可读标签。
- *
- * 后端流水只给 ID，名称来自筛选下拉的选项表；选项未加载或已软删除时回退 `#id`，
- * 不能留空（否则用户只能看到一片空白，无法判断是哪条流水）。
- */
-export function referenceLabel(
-  options: ReadonlyArray<{ label: string; value: number }>,
-  id: number,
-): string {
-  return options.find((option) => option.value === id)?.label ?? `#${id}`
 }
 
 /**

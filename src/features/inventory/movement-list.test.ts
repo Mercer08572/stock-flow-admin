@@ -10,7 +10,6 @@ import {
   OPERATION_TYPE_OPTIONS,
   operationTypeLabel,
   operationTypeTagType,
-  referenceLabel,
   toCreatedRange,
 } from './movement-list'
 
@@ -191,20 +190,6 @@ describe('formatMovementActor', () => {
       'admin',
     )
     expect(formatMovementActor({ actor_label: null, actor_type: null, actor_id: null })).toBe('-')
-  })
-})
-
-describe('referenceLabel', () => {
-  const options = [{ label: 'WH-01 - 主仓', value: 3 }]
-
-  it('resolves the label from the option list', () => {
-    expect(referenceLabel(options, 3)).toBe('WH-01 - 主仓')
-  })
-
-  it('falls back to the id when the reference is not loaded', () => {
-    // 后端流水只给 ID，选项未加载或主数据被软删除时不能留空
-    expect(referenceLabel(options, 99)).toBe('#99')
-    expect(referenceLabel([], 3)).toBe('#3')
   })
 })
 

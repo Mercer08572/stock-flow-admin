@@ -12,10 +12,9 @@ import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import PageHeader from '@/components/common/PageHeader.vue'
+import { referenceCode, referenceName } from '@/components/common/reference-display'
 import {
   buildStockQuery,
-  referenceCode,
-  referenceName,
   toSelectOptions,
   STOCK_PAGE_SIZE,
   type StockFilters,

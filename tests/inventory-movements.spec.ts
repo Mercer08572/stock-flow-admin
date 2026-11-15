@@ -35,6 +35,9 @@ function movement(id: number, options: MovementOptions = {}) {
     operation_type,
     warehouse_id: warehouse.id,
     sku_id: sku.id,
+    // 引用快照由后端 JOIN 内联，列渲染不再依赖筛选下拉的选项表
+    warehouse,
+    sku,
     batch_id,
     stock_layer_id: 11,
     reservation_id,

@@ -22,6 +22,7 @@ import { skusApi } from '@/api/skus'
 import { warehousesApi } from '@/api/warehouses'
 import DataTable from '@/components/common/DataTable.vue'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
+import { referenceLabel } from '@/components/common/reference-display'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ReservationDetailDrawer from '@/features/inventory/ReservationDetailDrawer.vue'
 import {
@@ -34,7 +35,6 @@ import {
   operationTypeLabel,
   operationTypeTagType,
   OPERATION_TYPE_OPTIONS,
-  referenceLabel,
   type MovementFilters,
 } from '@/features/inventory/movement-list'
 import { toSelectOptions } from '@/features/inventory/stock-list'
@@ -126,17 +126,17 @@ const columns: DataTableColumn<InventoryMovement>[] = [
     title: '仓库',
     width: 190,
     sortable: false,
-    // 流水只带 ID，名称来自筛选下拉的选项表；取不到时回退 #id，不留空白
-    render: (row) => referenceLabel(warehouseOptions.value, row.warehouse_id),
-    exportValue: (row) => referenceLabel(warehouseOptions.value, row.warehouse_id),
+    // 名称来自后端内联的引用快照；关联行缺失时回退 #id，不留空白
+    render: (row) => referenceLabel(row.warehouse, row.warehouse_id),
+    exportValue: (row) => referenceLabel(row.warehouse, row.warehouse_id),
   },
   {
     key: 'sku_id',
     title: 'SKU',
     width: 220,
     sortable: false,
-    render: (row) => referenceLabel(skuOptions.value, row.sku_id),
-    exportValue: (row) => referenceLabel(skuOptions.value, row.sku_id),
+    render: (row) => referenceLabel(row.sku, row.sku_id),
+    exportValue: (row) => referenceLabel(row.sku, row.sku_id),
   },
   { key: 'qty', title: '数量', width: 120, align: 'right', sortable: false },
   {
