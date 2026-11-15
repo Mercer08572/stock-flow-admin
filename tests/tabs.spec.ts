@@ -96,6 +96,11 @@ function allTabs(page: Page) {
   return page.locator('.n-tabs-tab')
 }
 
+/** 标签右键菜单项：Naive 把选项渲染成 `.n-dropdown-option-body`（禁用态也在这个元素上） */
+function tabMenuItem(page: Page, label: string) {
+  return page.locator('.n-dropdown-option-body').filter({ hasText: label })
+}
+
 /**
  * 移动端左侧菜单收进抽屉，先点汉堡按钮；点击后抽屉会由 navigate() 自动关闭。
  *
@@ -112,6 +117,15 @@ async function openFromMenu(page: Page, label: string, path: string) {
 /** 从工作台的快捷入口跳转（两种宽度下都可见） */
 async function openFromQuickLink(page: Page, label: string, path: string) {
   await page.locator('.quick-link').filter({ hasText: label }).click()
+  await expect(page).toHaveURL(path)
+}
+
+/** 打开分组菜单里的子项（如「主数据 → 仓库」）：先展开分组，再点子项 */
+async function openFromSubmenu(page: Page, group: string, label: string, path: string) {
+  const width = page.viewportSize()?.width ?? 0
+  if (width < 768) await page.getByRole('button', { name: '打开导航' }).click()
+  await page.locator('.n-menu-item-content').filter({ hasText: group }).click()
+  await page.locator('.n-menu-item-content').filter({ hasText: label }).click()
   await expect(page).toHaveURL(path)
 }
 
@@ -179,6 +193,87 @@ test('深链与刷新后重建为「工作台 + 当前页」', async ({ page }) 
   await expect(page).toHaveURL(WAREHOUSES)
   await expect(allTabs(page)).toHaveCount(2)
   await expect(tab(page, WORKBENCH)).toBeVisible()
+})
+
+test('右键菜单以锚点批量关闭标签，工作台固定不受影响', async ({ page }) => {
+  await page.goto(WORKBENCH)
+  await openFromQuickLink(page, '计量单位', UNITS)
+  await openFromMenu(page, '库存余额', STOCKS)
+  await openFromSubmenu(page, '主数据', '仓库', WAREHOUSES)
+  await expect(allTabs(page)).toHaveCount(4)
+  await expect(page).toHaveURL(WAREHOUSES)
+
+  // 右键中间标签：弹出四项菜单、顺序固定，且不切换当前页面
+  await tab(page, STOCKS).click({ button: 'right' })
+  await expect(page.locator('.n-dropdown-option-body')).toHaveCount(4)
+  await expect(page.locator('.n-dropdown-option-body__label')).toHaveText([
+    '关闭右侧',
+    '关闭左侧',
+    '关闭其他',
+    '关闭所有',
+  ])
+  await expect(page).toHaveURL(WAREHOUSES)
+
+  // 关闭右侧：右侧的「仓库」被关掉；它是当前页，因此激活左邻「库存余额」
+  await tabMenuItem(page, '关闭右侧').click()
+  await expect(allTabs(page)).toHaveCount(3)
+  await expect(tab(page, WAREHOUSES)).toHaveCount(0)
+  await expect(page).toHaveURL(STOCKS)
+  await expect(tab(page, STOCKS)).toHaveClass(/n-tabs-tab--active/)
+
+  // 关闭左侧：左侧的「计量单位」被关掉，锚点与当前页都不动
+  await tab(page, STOCKS).click({ button: 'right' })
+  await tabMenuItem(page, '关闭左侧').click()
+  await expect(allTabs(page)).toHaveCount(2)
+  await expect(tab(page, UNITS)).toHaveCount(0)
+  await expect(page).toHaveURL(STOCKS)
+
+  // 以工作台为锚点：左侧没有可关闭的标签 → 该项置灰
+  await tab(page, WORKBENCH).click({ button: 'right' })
+  await expect(tabMenuItem(page, '关闭左侧')).toHaveClass(/n-dropdown-option-body--disabled/)
+
+  // 关闭其他：只剩工作台；当前页「库存余额」被关掉 → 回到工作台
+  await tabMenuItem(page, '关闭其他').click()
+  await expect(allTabs(page)).toHaveCount(1)
+  await expect(page).toHaveURL(WORKBENCH)
+  await expect(tab(page, WORKBENCH)).toHaveClass(/n-tabs-tab--active/)
+
+  // 关闭所有：仍然保留工作台
+  await openFromQuickLink(page, '计量单位', UNITS)
+  await openFromMenu(page, '库存余额', STOCKS)
+  await expect(allTabs(page)).toHaveCount(3)
+  await tab(page, UNITS).click({ button: 'right' })
+  await tabMenuItem(page, '关闭所有').click()
+  await expect(allTabs(page)).toHaveCount(1)
+  await expect(page).toHaveURL(WORKBENCH)
+  await expect(tab(page, WORKBENCH)).toHaveClass(/n-tabs-tab--active/)
+})
+
+test('右键菜单只在标签上弹出，Esc 与点击外部都能关闭', async ({ page }) => {
+  await page.goto(WORKBENCH)
+  await openFromQuickLink(page, '计量单位', UNITS)
+  await expect(allTabs(page)).toHaveCount(2)
+
+  // 右键标签：菜单弹出，当前页面保持不变
+  await tab(page, UNITS).click({ button: 'right' })
+  await expect(page.locator('.n-dropdown-option-body')).toHaveCount(4)
+  await expect(page).toHaveURL(UNITS)
+
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.n-dropdown-option-body')).toHaveCount(0)
+  await expect(page).toHaveURL(UNITS)
+
+  // 空白处右键：保留浏览器原生菜单，不弹自定义菜单
+  const bar = await page.locator('.tabbar').boundingBox()
+  if (!bar) throw new Error('找不到标签条')
+  await page.locator('.tabbar').click({ button: 'right', position: { x: bar.width - 16, y: 10 } })
+  await expect(page.locator('.n-dropdown-option-body')).toHaveCount(0)
+
+  // 点击外部关闭
+  await tab(page, UNITS).click({ button: 'right' })
+  await expect(page.locator('.n-dropdown-option-body')).toHaveCount(4)
+  await page.locator('.app-content').click({ position: { x: 20, y: 20 } })
+  await expect(page.locator('.n-dropdown-option-body')).toHaveCount(0)
 })
 
 test.describe('固定外壳', () => {

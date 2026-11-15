@@ -63,9 +63,16 @@ views/components -> feature stores and API modules -> api/client -> stock-flow A
 - **不缓存页面状态**（未启用 `KeepAlive`）：切换标签会重新挂载视图并重新取数，
   宁可多一次请求，也不让跨标签读到过期数据。
 - 关闭当前页的标签时激活它左侧的标签（工作台保底）；关闭非当前页的标签不改变当前页面。
+- 标签支持右键菜单批量关闭，以被右键的标签为锚点：「关闭右侧 / 关闭左侧 / 关闭其他 / 关闭所有」。
+  工作台在任何模式下都不会被关闭（`closable: false` 兜底），其余模式下锚点自身保留，只有「所有」会连锚点一起关。
+  关闭后仍遵循同一条激活规则：当前页幸存就不跳转，被关掉就落到它左侧最近的幸存标签（工作台保底）。
+- 右键菜单用 `NDropdown` 的 `trigger="manual"` + 光标坐标渲染（`position: fixed` 挂到 body，不受标签条
+  `overflow: hidden` 裁剪），因此没有 trigger 元素；打开入口是标签条上的 `contextmenu` 事件委托
+  （`NTab` 是 `inheritAttrs: false` 的声明式组件，事件绑不到单个标签上，靠 Naive 写在标签上的 `data-name` 认锚点）。
+  菜单项禁用态由标签集合实时计算；右键标签条空白处不拦截，保留浏览器原生菜单。
 - 标签集合不持久化：刷新或深链后重建为「工作台 + 当前页」；退出登录时外壳卸载，标签随之清空。
-- 标签规则（登记、去重、关闭后激活谁）集中在 `src/components/layout/shell-tabs.ts` 的纯函数里，
-  单测见 `shell-tabs.test.ts`，端到端覆盖见 `tests/tabs.spec.ts`（含 band 固定与「短页面不多出滚动条」两条回归）。
+- 标签规则（登记、去重、关闭后激活谁、批量关闭范围）集中在 `src/components/layout/shell-tabs.ts` 的纯函数里，
+  单测见 `shell-tabs.test.ts`，端到端覆盖见 `tests/tabs.spec.ts`（含 band 固定、右键菜单与「短页面不多出滚动条」三条回归）。
 
 **侧栏折叠**
 
