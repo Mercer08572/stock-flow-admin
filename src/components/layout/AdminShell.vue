@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useBreakpoints } from '@vueuse/core'
 import {
+  Activity,
   Bookmark,
   Boxes,
   Building2,
@@ -82,6 +83,7 @@ const menuOptions: MenuOption[] = [
     children: [
       { label: 'API 密钥', key: '/settings/api-keys', icon: icon(KeyRound) },
       { label: '审计日志', key: '/settings/audit-logs', icon: icon(ScrollText) },
+      { label: 'API 监控', key: '/settings/api-monitor', icon: icon(Activity) },
     ],
   },
 ]

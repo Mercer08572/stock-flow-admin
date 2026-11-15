@@ -116,6 +116,12 @@ export const router = createRouter({
           meta: { title: '审计日志' },
         },
         {
+          path: 'settings/api-monitor',
+          name: 'api-monitor',
+          component: () => import('@/features/api-monitor/ApiMonitorView.vue'),
+          meta: { title: 'API 监控' },
+        },
+        {
           path: 'account/password',
           name: 'change-password',
           component: () => import('@/features/auth/ChangePasswordView.vue'),

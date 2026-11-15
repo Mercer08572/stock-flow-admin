@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { Boxes, PackageSearch, RefreshCw, Ruler, Tags, Warehouse } from '@lucide/vue'
-import { onMounted, ref, type Component } from 'vue'
+import { NButton, NRadioButton, NRadioGroup } from 'naive-ui'
+import { computed, onMounted, ref, type Component } from 'vue'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
 import { healthApi } from '@/api/health'
 import AsyncState from '@/components/common/AsyncState.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import MovementTrendChart from '@/features/dashboard/MovementTrendChart.vue'
+import { useMovementStats } from '@/features/dashboard/useMovementStats'
+import { STATS_RANGES } from '@/lib/stats'
 
 import type { HealthStatus } from '@/types/api'
 
@@ -43,6 +47,31 @@ async function checkHealth() {
 }
 
 onMounted(checkHealth)
+
+const {
+  range,
+  data: movementStats,
+  error: movementError,
+  loading: movementsLoading,
+  refreshing: movementsRefreshing,
+  lastUpdatedAt,
+  refresh: refreshStats,
+  reload: reloadMovements,
+} = useMovementStats()
+
+/** 所有序列合计为 0 时展示空态，而不是一张贴着 0 轴的折线 */
+const movementTotalCalls = computed(
+  () =>
+    movementStats.value?.series.reduce(
+      (sum, series) => sum + series.calls.reduce((seriesSum, calls) => seriesSum + calls, 0),
+      0,
+    ) ?? 0,
+)
+
+const updatedAtText = computed(() => {
+  if (!lastUpdatedAt.value) return ''
+  return new Date(lastUpdatedAt.value).toLocaleTimeString('zh-CN', { hour12: false })
+})
 </script>
 
 <template>
@@ -71,6 +100,54 @@ onMounted(checkHealth)
         <span v-if="health" class="service-strip__status">{{ health.status }}</span>
       </section>
     </AsyncState>
+
+    <section class="stats-section" aria-labelledby="stats-heading">
+      <div class="stats-header">
+        <div class="stats-header__title">
+          <h2 id="stats-heading" class="section-title">库存操作趋势</h2>
+          <p class="stats-header__hint">成功操作次数，按幂等键去重；每 30 秒自动刷新</p>
+        </div>
+        <div class="stats-header__controls">
+          <NRadioGroup v-model:value="range" size="small" aria-label="统计时间范围">
+            <NRadioButton v-for="item in STATS_RANGES" :key="item.key" :value="item.key">
+              {{ item.label }}
+            </NRadioButton>
+          </NRadioGroup>
+          <NButton size="small" :loading="movementsRefreshing" @click="refreshStats">
+            <template #icon><RefreshCw :size="14" /></template>
+            刷新
+          </NButton>
+        </div>
+      </div>
+
+      <article class="stats-card">
+        <header class="stats-card__head">
+          <h3 class="stats-card__title">增 / 减 / 占用 / 占用扣减 / 占用释放</h3>
+          <span v-if="updatedAtText" class="stats-card__meta">更新于 {{ updatedAtText }}</span>
+        </header>
+        <AsyncState
+          :loading="movementsLoading"
+          :error="movementError?.message ?? ''"
+          :error-trace-id="movementError?.traceId ?? ''"
+          :empty="
+            !movementsLoading &&
+            !movementError &&
+            movementStats !== null &&
+            movementTotalCalls === 0
+          "
+          empty-text="该时段没有库存操作"
+          @retry="reloadMovements"
+        >
+          <MovementTrendChart
+            v-if="movementStats"
+            :buckets="movementStats.buckets"
+            :series="movementStats.series"
+            :granularity="movementStats.granularity"
+            :loading="movementsLoading"
+          />
+        </AsyncState>
+      </article>
+    </section>
 
     <section aria-labelledby="quick-entry-heading">
       <h2 id="quick-entry-heading" class="section-title">快捷入口</h2>
@@ -142,6 +219,62 @@ onMounted(checkHealth)
   font-weight: 650;
 }
 
+.stats-section {
+  margin-top: 8px;
+}
+
+.stats-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stats-header__title .section-title {
+  margin-bottom: 4px;
+}
+
+.stats-header__hint {
+  margin: 0 0 12px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.stats-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stats-card {
+  padding: 14px 16px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.stats-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.stats-card__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.stats-card__meta {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
 .quick-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -204,6 +337,11 @@ onMounted(checkHealth)
 @media (max-width: 480px) {
   .quick-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stats-header__controls {
+    width: 100%;
+    flex-wrap: wrap;
   }
 }
 </style>

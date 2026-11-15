@@ -59,8 +59,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 }
 
 export const api = {
-  get<T>(path: string, query?: Record<string, QueryValue>) {
-    return apiRequest<T>(path, { method: 'GET', ...(query ? { query } : {}) })
+  get<T>(path: string, query?: Record<string, QueryValue>, options?: { signal?: AbortSignal }) {
+    return apiRequest<T>(path, {
+      method: 'GET',
+      ...(query ? { query } : {}),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    })
   },
   post<T>(path: string, body?: unknown) {
     return apiRequest<T>(path, { method: 'POST', body })

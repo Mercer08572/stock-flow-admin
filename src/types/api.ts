@@ -453,3 +453,46 @@ export interface AuditLogListResult {
   items: AuditLog[]
   next_cursor?: string
 }
+
+// ---------------------------------------------------------------------------
+// 工作台趋势统计
+// ---------------------------------------------------------------------------
+
+/** 趋势统计的时间桶粒度 */
+export type StatsGranularity = 'hour' | 'day'
+
+/**
+ * 库存操作趋势（`GET /inventory/movements/stats`）。
+ *
+ * `buckets` 与每条 `series.calls` 等长：无数据的时间桶由后端补 0，
+ * 前端不应再假设"缺项代表 0"，否则折线会在空档处画出不存在的趋势。
+ *
+ * 计数口径是 `count(DISTINCT idempotency_key)`，即**成功**的库存操作次数：
+ * 一次请求跨批次 FIFO 分配时会写多行 movement，不能按行数统计。
+ */
+export interface MovementStatsSeries {
+  operation_type: MovementOperationType
+  calls: number[]
+}
+
+export interface MovementStats {
+  granularity: StatsGranularity
+  timezone: string
+  from: string
+  to: string
+  buckets: string[]
+  series: MovementStatsSeries[]
+}
+
+/** 库存接口吞吐与失败率（`GET /audit/stats`） */
+export interface ApiThroughputStats {
+  granularity: StatsGranularity
+  timezone: string
+  from: string
+  to: string
+  buckets: string[]
+  total: number[]
+  failed: number[]
+  /** 与 buckets 等长；空桶为 0，不是 NaN */
+  failure_rate: number[]
+}

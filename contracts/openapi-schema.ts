@@ -123,6 +123,17 @@ export interface AuditLog {
   user_agent?: string;
 }
 
+export interface AuditStats {
+  buckets?: string[];
+  failed?: number[];
+  failure_rate?: number[];
+  from?: string;
+  granularity?: string;
+  timezone?: string;
+  to?: string;
+  total?: number[];
+}
+
 export interface AuthAPIApp {
   app_id?: string;
   created_at?: string;
@@ -334,6 +345,20 @@ export interface InventoryMovementRef {
   id?: number;
   qty?: string;
   stock_layer_id?: number;
+}
+
+export interface InventoryMovementStats {
+  buckets?: string[];
+  from?: string;
+  granularity?: string;
+  series?: InventoryMovementStatsSeries[];
+  timezone?: string;
+  to?: string;
+}
+
+export interface InventoryMovementStatsSeries {
+  calls?: number[];
+  operation_type?: string;
 }
 
 export interface InventoryReservation {

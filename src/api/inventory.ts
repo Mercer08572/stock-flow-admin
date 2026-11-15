@@ -4,8 +4,10 @@ import type {
   InventoryMovement,
   ListResult,
   MovementOperationType,
+  MovementStats,
   Reservation,
   ReservationStatus,
+  StatsGranularity,
   StockBalance,
 } from '@/types/api'
 
@@ -39,4 +41,23 @@ export const inventoryApi = {
     limit?: number
     offset?: number
   }) => api.get<ListResult<InventoryMovement>>('/inventory/movements', query),
+
+  /**
+   * 库存操作趋势统计（工作台折线图）。
+   *
+   * 计数口径是成功的库存操作次数（后端按 `idempotency_key` 去重），
+   * 因此一次请求跨批次 FIFO 分配不会把同一次调用算成多次。
+   * `from` / `to` 是 RFC3339，`to` 为开区间，建议前端传整点/整日边界。
+   */
+  getMovementStats: (
+    query: {
+      from: string
+      to: string
+      granularity?: StatsGranularity
+      timezone?: string
+      warehouse_id?: number
+      sku_id?: number
+    },
+    options?: { signal?: AbortSignal },
+  ) => api.get<MovementStats>('/inventory/movements/stats', query, options),
 }
