@@ -15,7 +15,7 @@ import { conversionsApi } from '@/api/conversions'
 import { commensurableUnitTypes, type UnitDef } from '@/features/master-data/lib/unit-catalog'
 
 import type { FieldOption } from '@/features/master-data/lib/entity-form'
-import type { MaterialUnitConversion } from '@/types/api'
+import type { MaterialUnitConversion, Reference } from '@/types/api'
 
 /** 换算列表的取数上限（后端 `MaxListLimit`） */
 export const CONVERSION_PAGE_SIZE = 100
@@ -28,12 +28,9 @@ export interface ConversionRow {
   toUnitId: number
   /** 换算系数的原始十进制字符串 */
   factor: string
-}
-
-/** 单位显示文本：编码 - 名称，取不到时回退 `#id` */
-export function unitLabel(units: readonly UnitDef[], unitId: number): string {
-  const unit = units.find((candidate) => candidate.id === unitId)
-  return unit ? `${unit.code} - ${unit.name}` : `#${unitId}`
+  /** 两端单位的内联快照；渲染交给 `referenceLabel`，不在这里反查目录 */
+  fromUnit?: Reference
+  toUnit?: Reference
 }
 
 /**
@@ -48,6 +45,8 @@ export function toConversionRow(conversion: MaterialUnitConversion): ConversionR
     fromUnitId: conversion.from_unit_id,
     toUnitId: conversion.to_unit_id,
     factor: conversion.factor,
+    ...(conversion.from_unit === undefined ? {} : { fromUnit: conversion.from_unit }),
+    ...(conversion.to_unit === undefined ? {} : { toUnit: conversion.to_unit }),
   }
 }
 

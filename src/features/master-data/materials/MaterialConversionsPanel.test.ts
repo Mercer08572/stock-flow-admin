@@ -21,6 +21,15 @@ const units: UnitDef[] = [
 
 const now = '2026-10-01T10:00:00Z'
 
+const meterRef = { id: METER, code: 'M', name: '米', deleted: false, status: 'active' as const }
+const centimeterRef = {
+  id: CENTIMETER,
+  code: 'CM',
+  name: '厘米',
+  deleted: false,
+  status: 'active' as const,
+}
+
 /** 存量数据里互为反向的两条：界面必须逐行如实显示，而不是归一成同一条 */
 const conversions: MaterialUnitConversion[] = [
   {
@@ -31,6 +40,8 @@ const conversions: MaterialUnitConversion[] = [
     factor: '100.0000000000',
     created_at: now,
     updated_at: now,
+    from_unit: meterRef,
+    to_unit: centimeterRef,
   },
   {
     id: 5,
@@ -40,6 +51,8 @@ const conversions: MaterialUnitConversion[] = [
     factor: '0.0100000000',
     created_at: now,
     updated_at: now,
+    from_unit: centimeterRef,
+    to_unit: meterRef,
   },
 ]
 
@@ -70,6 +83,7 @@ function mountPanel() {
         h(MaterialConversionsPanel, {
           materialId: MATERIAL_ID,
           baseUnitId: METER,
+          baseUnit: meterRef,
           units,
         }),
     },

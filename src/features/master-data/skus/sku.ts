@@ -3,9 +3,13 @@
  *
  * 与 `skusApi` 的绑定只出现在这里。独立的 SKU 列表页与物料详情页的 SKU 子表
  * 都以本文件为字段来源，避免同一实体的两张表单出现字段漂移。
+ *
+ * 列表的「物料 / 单位」列直接读后端内联的引用快照（`material` / `unit`），
+ * 不再按 ID 去引用选项表里反查。
  */
 
 import { skusApi } from '@/api/skus'
+import { referenceLabel } from '@/components/common/reference-display'
 import {
   statusColumn,
   timeColumn,
@@ -14,12 +18,9 @@ import {
 import { statusOptions } from '@/features/master-data/lib/reference-labels'
 
 import type { DataTableColumn } from '@/components/common/data-table'
-import type { FieldConfig, FieldOption, ReferenceKey } from '@/features/master-data/lib/entity-form'
+import type { FieldConfig, FieldOption } from '@/features/master-data/lib/entity-form'
 import { commensurableUnitTypes, type UnitDef } from '@/features/master-data/lib/unit-catalog'
 import type { SKU } from '@/types/api'
-
-/** 与 `FieldConfig.optionsSource` 一一对应，供页面声明需要加载哪些引用选项 */
-export const skuReferenceKeys: readonly ReferenceKey[] = ['materials', 'units']
 
 const commonFields: readonly FieldConfig[] = [
   { key: 'code', label: '编码', type: 'text', required: true, placeholder: '请输入编码' },
@@ -113,46 +114,51 @@ export function commensurableUnitOptions(
   return available.map((unit) => ({ label: `${unit.code} - ${unit.name}`, value: unit.id }))
 }
 
-/**
- * 列表列需要把 `material_id` / `unit_id` 渲染成「编码 - 名称」，
- * 因此标签函数由页面注入（页面才知道引用选项加载到没有）。
- */
-export function skuColumns(label: (key: ReferenceKey, id: unknown) => string) {
-  const columns: readonly DataTableColumn<SKU>[] = [
+/** 列表列：物料与单位渲染「编码 - 名称」，名字来自后端内联的引用快照 */
+export function skuColumns(): readonly DataTableColumn<SKU>[] {
+  return [
     { key: 'code', title: '编码', width: 140 },
     { key: 'name', title: '名称', width: 180 },
     {
       key: 'material_id',
       title: '物料',
       width: 190,
-      render: (row) => label('materials', row.material_id),
+      render: (row) => referenceLabel(row.material, row.material_id),
     },
-    { key: 'unit_id', title: '单位', width: 170, render: (row) => label('units', row.unit_id) },
+    {
+      key: 'unit_id',
+      title: '单位',
+      width: 170,
+      render: (row) => referenceLabel(row.unit, row.unit_id),
+    },
     statusColumn,
     timeColumn,
   ]
-  return columns
 }
 
 /**
  * 物料详情页子表的列：不重复「物料」列（整张表都属于同一个物料），
  * 其余列与独立 SKU 列表保持一致。
  */
-export function skuDetailColumns(label: (key: ReferenceKey, id: unknown) => string) {
-  const columns: readonly DataTableColumn<SKU>[] = [
+export function skuDetailColumns(): readonly DataTableColumn<SKU>[] {
+  return [
     { key: 'code', title: '编码', width: 140 },
     { key: 'name', title: '名称', width: 180 },
-    { key: 'unit_id', title: '单位', width: 170, render: (row) => label('units', row.unit_id) },
+    {
+      key: 'unit_id',
+      title: '单位',
+      width: 170,
+      render: (row) => referenceLabel(row.unit, row.unit_id),
+    },
     statusColumn,
     timeColumn,
   ]
-  return columns
 }
 
 export const skuConfig: ResourceConfig<SKU> = {
   title: 'SKU',
   load: (offset) => skusApi.list({ limit: 100, offset }),
-  // 列由页面提供（引用列标签依赖页面加载到的选项），见 SkuListView.vue
+  // 列由页面提供（依赖后端内联的引用快照），见 SkuListView.vue
   fields: skuFields,
   create: skusApi.create,
   get: skusApi.get,

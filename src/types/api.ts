@@ -34,11 +34,18 @@ export interface HealthStatus {
   status: string
 }
 
+/**
+ * 后端内联的引用实体快照（仓库 / SKU / 物料 / 单位 / 分类）。
+ *
+ * `deleted` 来自引用表的 `deleted_at`；`status` 只在后端本次查询选出该列时存在，
+ * 缺失表示「未查」，不能当成「已停用」。
+ */
 export interface Reference {
   id: number
   code: string
   name: string
   deleted: boolean
+  status?: EntityStatus
 }
 
 export interface BaseEntity {
@@ -74,6 +81,9 @@ export interface MaterialUnitConversion {
   factor: string
   created_at: string
   updated_at: string
+  /** 两端单位的内联快照（列表 / 详情接口返回，写入接口不返回） */
+  from_unit?: Reference
+  to_unit?: Reference
 }
 
 export interface CreateMaterialUnitConversionInput {
@@ -93,12 +103,18 @@ export interface Material extends BaseEntity {
   base_unit_id: number
   category_id: number
   remark?: string
+  /** 分类与基础单位的内联快照（列表 / 详情接口返回，写入接口不返回） */
+  category?: Reference
+  base_unit?: Reference
 }
 
 export interface SKU extends BaseEntity {
   material_id: number
   unit_id: number
   remark?: string
+  /** 物料与单位的内联快照（列表 / 详情接口返回，写入接口不返回） */
+  material?: Reference
+  unit?: Reference
 }
 
 export interface Warehouse extends BaseEntity {
@@ -207,8 +223,7 @@ export type MovementOperationType =
 /**
  * 库存流水（`GET /inventory/movements`）。
  *
- * 与预留单不同，后端 `inventory.Movement` **不内联** `warehouse` / `sku` 引用，
- * 只给 ID，因此仓库 / SKU 名称要由筛选下拉的选项表反查，取不到时回退 `#id`。
+ * 仓库 / SKU 引用由后端 JOIN 内联（`warehouse` / `sku`），名称不需要前端再按 ID 反查。
  *
  * 可空字段与后端指针一一对应（字段本身始终存在，值为 null）：
  * 批次、库存层、预留单与来源在部分操作类型下没有对应实体。
@@ -219,6 +234,8 @@ export interface InventoryMovement {
   operation_type: MovementOperationType
   warehouse_id: number
   sku_id: number
+  warehouse?: Reference
+  sku?: Reference
   batch_id: number | null
   stock_layer_id: number | null
   reservation_id: number | null

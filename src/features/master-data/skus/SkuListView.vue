@@ -2,16 +2,14 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import EntityListPage from '@/features/master-data/components/EntityListPage.vue'
-import { useReferenceOptions } from '@/features/master-data/lib/reference-labels'
+import { skuColumns, skuConfig, skuFields } from '@/features/master-data/skus/sku'
 import { useUnitCatalog } from '@/features/master-data/lib/unit-catalog'
 import { useMaterialUnitOptions } from '@/features/master-data/materials/material-conversion'
-import { skuColumns, skuConfig, skuFields, skuReferenceKeys } from '@/features/master-data/skus/sku'
 
 import type { FieldConfig } from '@/features/master-data/lib/entity-form'
 
-// 引用列需要「编码 - 名称」；选项到位后表格会自动重渲染
-const { label } = useReferenceOptions(skuReferenceKeys)
-const columns = skuColumns(label)
+// 引用列（物料 / 单位）直接渲染后端内联的快照，无需再加载引用选项表
+const columns = skuColumns()
 
 // 单位候选取决于选中的物料：基础单位 ∪ 该物料已建立换算的单位
 const { ensure: ensureUnits } = useUnitCatalog()

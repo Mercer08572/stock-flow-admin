@@ -29,22 +29,24 @@ import {
 import { conversionsApi } from '@/api/conversions'
 import { getErrorDetail, getErrorMessage, type ErrorDetail } from '@/api/error'
 import AsyncState from '@/components/common/AsyncState.vue'
+import { referenceLabel } from '@/components/common/reference-display'
 import {
   availableTargetUnits,
   CONVERSION_PAGE_SIZE,
   toConversionRow,
-  unitLabel,
   type ConversionRow,
 } from '@/features/master-data/materials/material-conversion'
 
 import type { UnitDef } from '@/features/master-data/lib/unit-catalog'
-import type { MaterialUnitConversion } from '@/types/api'
+import type { MaterialUnitConversion, Reference } from '@/types/api'
 
 const props = defineProps<{
   materialId: number
-  /** 物料基础单位：换算的固定一端 */
+  /** 物料基础单位 ID：换算的固定一端，用于请求体 */
   baseUnitId: number
-  /** 单位目录，由父组件加载（同一个目录也用于 SKU 单位下拉） */
+  /** 基础单位的内联快照，仅用于展示「编码 - 名称」 */
+  baseUnit?: Reference | undefined
+  /** 单位目录，由父组件加载（同一个目录也用于 SKU 单位下拉，作为下拉候选） */
   units: readonly UnitDef[]
 }>()
 
@@ -63,27 +65,27 @@ const drawerMode = ref<'create' | 'edit'>('create')
 const editingId = ref<number | null>(null)
 const saving = ref(false)
 const form = ref<{ to_unit_id: number | null; factor: string }>({ to_unit_id: null, factor: '' })
-/** 编辑时的原始方向；新增时为空，表示「基础单位 → 目标单位」 */
-const editingDirection = ref<{ fromUnitId: number; toUnitId: number } | null>(null)
+/** 编辑中的原始行；新增时为 null，表示「基础单位 → 目标单位」 */
+const editingRow = ref<ConversionRow | null>(null)
 
-const baseUnitText = computed(() => unitLabel(props.units, props.baseUnitId))
+const baseUnitText = computed(() => referenceLabel(props.baseUnit, props.baseUnitId))
 
 /** 编辑时展示的原始方向文案：`1 <from> = <factor> <to>` */
 const editingRelationText = computed(() => {
-  const direction = editingDirection.value
-  if (!direction) return ''
+  const row = editingRow.value
+  if (!row) return ''
 
-  return `1 ${unitLabel(props.units, direction.fromUnitId)} = ${form.value.factor} ${unitLabel(props.units, direction.toUnitId)}`
+  return `1 ${referenceLabel(row.fromUnit, row.fromUnitId)} = ${form.value.factor} ${referenceLabel(row.toUnit, row.toUnitId)}`
 })
 
 /** 系数输入框的说明：新增时是「基础单位 → 选中单位」，编辑时是「该行原本的方向」 */
 const factorLabel = computed(() => {
-  const direction = editingDirection.value
-  if (!direction) {
+  const row = editingRow.value
+  if (!row) {
     return `1 ${baseUnitText.value} 等于多少目标单位`
   }
 
-  return `1 ${unitLabel(props.units, direction.fromUnitId)} 等于多少 ${unitLabel(props.units, direction.toUnitId)}`
+  return `1 ${referenceLabel(row.fromUnit, row.fromUnitId)} 等于多少 ${referenceLabel(row.toUnit, row.toUnitId)}`
 })
 const mayBeTruncated = computed(() => conversions.value.length >= CONVERSION_PAGE_SIZE)
 
@@ -103,7 +105,7 @@ const columns = computed<DataTableColumns<ConversionRow>>(() => [
     key: 'relation',
     title: '换算关系',
     render: (row) =>
-      `1 ${unitLabel(props.units, row.fromUnitId)} = ${row.factor} ${unitLabel(props.units, row.toUnitId)}`,
+      `1 ${referenceLabel(row.fromUnit, row.fromUnitId)} = ${row.factor} ${referenceLabel(row.toUnit, row.toUnitId)}`,
   },
   {
     key: 'direction',
@@ -153,7 +155,7 @@ async function load() {
 function openCreate() {
   drawerMode.value = 'create'
   editingId.value = null
-  editingDirection.value = null
+  editingRow.value = null
   form.value = { to_unit_id: null, factor: '' }
   drawerOpen.value = true
 }
@@ -163,7 +165,7 @@ function openEdit(row: ConversionRow) {
   editingId.value = row.id
   // 编辑沿用该行原本的 from/to（新增时才是「基础单位 → 目标单位」）
   form.value = { to_unit_id: row.toUnitId, factor: row.factor }
-  editingDirection.value = { fromUnitId: row.fromUnitId, toUnitId: row.toUnitId }
+  editingRow.value = row
   drawerOpen.value = true
 }
 
@@ -183,10 +185,10 @@ async function submit() {
   }
 
   // 新增：基础单位 → 目标单位；编辑：沿用该行原本的方向
-  const payload = editingDirection.value
+  const payload = editingRow.value
     ? {
-        from_unit_id: editingDirection.value.fromUnitId,
-        to_unit_id: editingDirection.value.toUnitId,
+        from_unit_id: editingRow.value.fromUnitId,
+        to_unit_id: editingRow.value.toUnitId,
         factor,
       }
     : {
@@ -217,7 +219,7 @@ async function submit() {
 function confirmDelete(row: ConversionRow) {
   dialog.warning({
     title: '删除单位换算',
-    content: `确认删除「1 ${unitLabel(props.units, row.fromUnitId)} = ${row.factor} ${unitLabel(props.units, row.toUnitId)}」吗？删除后该单位不再能用于此物料的 SKU。`,
+    content: `确认删除「1 ${referenceLabel(row.fromUnit, row.fromUnitId)} = ${row.factor} ${referenceLabel(row.toUnit, row.toUnitId)}」吗？删除后该单位不再能用于此物料的 SKU。`,
     positiveText: '确认删除',
     negativeText: '取消',
     onPositiveClick: () => remove(row),
@@ -282,7 +284,7 @@ watch(() => [props.materialId, props.baseUnitId] as const, load)
     <NDrawer v-model:show="drawerOpen" :width="420" placement="right">
       <NDrawerContent :title="drawerMode === 'edit' ? '编辑单位换算' : '新增单位换算'" closable>
         <NForm :show-label="true" label-placement="top" :show-feedback="false">
-          <NFormItem v-if="editingDirection" label="换算方向">
+          <NFormItem v-if="editingRow" label="换算方向">
             <NInput :value="editingRelationText" disabled />
           </NFormItem>
           <NFormItem v-else label="目标单位">

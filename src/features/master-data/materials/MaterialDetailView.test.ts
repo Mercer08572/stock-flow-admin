@@ -79,6 +79,9 @@ const material = {
   remark: null,
   created_at: now,
   updated_at: now,
+  // 后端内联的引用快照：展示不再依赖 /categories 与 /units 的选项表
+  category: { id: 11, code: 'CAT-01', name: '金属件', deleted: false, status: 'active' as const },
+  base_unit: { id: 1, code: 'KG', name: '千克', deleted: false, status: 'active' as const },
 }
 const sku = {
   id: 1001,
@@ -90,6 +93,7 @@ const sku = {
   remark: null,
   created_at: now,
   updated_at: now,
+  unit: { id: 1, code: 'KG', name: '千克', deleted: false, status: 'active' as const },
 }
 
 /** 读取基础信息里某个字段的取值（标签与取值是分开的两个元素） */

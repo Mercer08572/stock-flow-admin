@@ -4,7 +4,6 @@ import {
   availableTargetUnits,
   skuUnitOptions,
   toConversionRow,
-  unitLabel,
 } from '@/features/master-data/materials/material-conversion'
 
 import type { UnitDef } from '@/features/master-data/lib/unit-catalog'
@@ -53,12 +52,6 @@ describe('toConversionRow', () => {
 
     expect(forward).toMatchObject({ fromUnitId: M.id, toUnitId: 6, factor: '100.0000000000' })
     expect(backward).toMatchObject({ fromUnitId: 6, toUnitId: M.id, factor: '0.0100000000' })
-  })
-})
-
-describe('unitLabel', () => {
-  it('falls back to the id when the unit is missing', () => {
-    expect(unitLabel(units, 99)).toBe('#99')
   })
 })
 

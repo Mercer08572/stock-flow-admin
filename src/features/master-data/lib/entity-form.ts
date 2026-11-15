@@ -129,19 +129,3 @@ export function resolveFieldOptions(
     return { ...field, options: optionsBySource[field.optionsSource] ?? [] }
   })
 }
-
-/**
- * 选项表里找不到该值时给出可读回退。
- *
- * 两种正常情况都会走到这里：引用被软删除（不在列表里）、或引用不在前 100 条内。
- */
-export function optionLabel(
-  options: readonly FieldOption[] | undefined,
-  value: unknown,
-  fallbackPrefix = '#',
-): string {
-  const match = options?.find((option) => String(option.value) === String(value))
-  if (match) return match.label
-  if (value === null || value === undefined || value === '') return ''
-  return `${fallbackPrefix}${String(value)}`
-}

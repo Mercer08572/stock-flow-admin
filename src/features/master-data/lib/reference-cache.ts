@@ -21,8 +21,8 @@ export const REFERENCE_LIST_LIMIT = 100
 /**
  * 只列启用中的引用。
  *
- * 被停用的分类/单位/物料在**编辑**已有实体时仍可由 `optionLabel` 显示编码与名称
- * （它不依赖选项表），但不再出现在下拉里，因此也不能被重新选中。
+ * 被停用的分类/单位/物料不再出现在下拉里，因此也不能被重新选中；
+ * 但列表与详情展示的是后端内联快照，历史行仍照常显示名称。
  */
 const REFERENCE_QUERY = { status: 'active', limit: REFERENCE_LIST_LIMIT, offset: 0 } as const
 

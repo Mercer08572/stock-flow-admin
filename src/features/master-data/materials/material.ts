@@ -6,6 +6,7 @@
  */
 
 import { materialsApi } from '@/api/materials'
+import { referenceLabel } from '@/components/common/reference-display'
 import {
   statusColumn,
   timeColumn,
@@ -14,11 +15,8 @@ import {
 import { statusOptions } from '@/features/master-data/lib/reference-labels'
 
 import type { DataTableColumn } from '@/components/common/data-table'
-import type { FieldConfig, ReferenceKey } from '@/features/master-data/lib/entity-form'
+import type { FieldConfig } from '@/features/master-data/lib/entity-form'
 import type { Material } from '@/types/api'
-
-/** 与 `FieldConfig.optionsSource` 一一对应，供页面声明需要加载哪些引用选项 */
-export const materialReferenceKeys: readonly ReferenceKey[] = ['categories', 'units']
 
 const commonFields: readonly FieldConfig[] = [
   { key: 'code', label: '编码', type: 'text', required: true, placeholder: '请输入编码' },
@@ -59,36 +57,32 @@ export function materialEditFields(baseUnitId: number): FieldConfig[] {
   )
 }
 
-/**
- * 列表列需要把 `category_id` / `base_unit_id` 渲染成「编码 - 名称」，
- * 因此标签函数由页面注入（页面才知道引用选项加载到没有）。
- */
-export function materialColumns(label: (key: ReferenceKey, id: unknown) => string) {
-  const columns: readonly DataTableColumn<Material>[] = [
+/** 列表列：分类与基础单位渲染「编码 - 名称」，名字来自后端内联的引用快照 */
+export function materialColumns(): readonly DataTableColumn<Material>[] {
+  return [
     { key: 'code', title: '编码', width: 140 },
     { key: 'name', title: '名称', width: 180 },
     {
       key: 'category_id',
       title: '分类',
       width: 190,
-      render: (row) => label('categories', row.category_id),
+      render: (row) => referenceLabel(row.category, row.category_id),
     },
     {
       key: 'base_unit_id',
       title: '基础单位',
       width: 170,
-      render: (row) => label('units', row.base_unit_id),
+      render: (row) => referenceLabel(row.base_unit, row.base_unit_id),
     },
     statusColumn,
     timeColumn,
   ]
-  return columns
 }
 
 export const materialConfig: ResourceConfig<Material> = {
   title: '物料',
   load: (offset) => materialsApi.list({ limit: 100, offset }),
-  // 列不由配置提供：页面的引用列标签依赖其加载到的选项，见 MaterialListView.vue
+  // 列不由配置提供：页面的引用列依赖后端内联快照，见 MaterialListView.vue
   fields: materialFields,
   create: materialsApi.create,
   get: materialsApi.get,

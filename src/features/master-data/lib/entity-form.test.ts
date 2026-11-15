@@ -5,7 +5,6 @@ import {
   createEmptyForm,
   fillForm,
   findMissingRequired,
-  optionLabel,
   referenceSources,
   resolveFieldOptions,
   type FieldConfig,
@@ -259,11 +258,5 @@ describe('引用型选项', () => {
       { label: 'KG - 千克', value: 1 },
     ])
     expect(fields.find((field) => field.key === 'status')?.options).toBeUndefined()
-  })
-
-  it('找不到引用时回退成可读的 ID 而不是空白', () => {
-    expect(optionLabel([{ label: 'KG - 千克', value: 1 }], 1)).toBe('KG - 千克')
-    expect(optionLabel([], 99)).toBe('#99')
-    expect(optionLabel(undefined, null)).toBe('')
   })
 })

@@ -20,11 +20,11 @@ import { skusApi } from '@/api/skus'
 import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
+import { referenceLabel } from '@/components/common/reference-display'
 import StatusTag from '@/components/common/StatusTag.vue'
 import { useShellTabTitle } from '@/components/layout/shell-tab-title'
 import EntityFormDrawer from '@/features/master-data/components/EntityFormDrawer.vue'
 import { useEntityList } from '@/features/master-data/lib/entity-list'
-import { useReferenceOptions } from '@/features/master-data/lib/reference-labels'
 import { actionColumn } from '@/features/master-data/lib/row-actions'
 import { useUnitCatalog } from '@/features/master-data/lib/unit-catalog'
 import MaterialConversionsPanel from '@/features/master-data/materials/MaterialConversionsPanel.vue'
@@ -43,9 +43,6 @@ const materialId = Number(route.params.id)
 const material = ref<Material | null>(null)
 const materialLoading = ref(false)
 const materialError = ref<ErrorDetail | null>(null)
-
-// 基础信息里的分类与基础单位都要显示「编码 - 名称」，因此需要分类与单位的引用选项
-const { label } = useReferenceOptions(['categories', 'units'])
 
 // 单位目录同时服务于换算区块与新增 SKU 的单位下拉，因此在这一层加载并显式刷新
 const { units, ensure: ensureUnits, reload: reloadUnits } = useUnitCatalog()
@@ -81,7 +78,7 @@ const fields = computed(() =>
 )
 
 const columns = computed(() => [
-  ...skuDetailColumns(label),
+  ...skuDetailColumns(),
   actionColumn<SKU>({ onEdit: openEdit, onDelete: confirmDelete }),
 ])
 
@@ -171,11 +168,11 @@ onMounted(() => {
           </div>
           <div class="material-fact">
             <dt>分类</dt>
-            <dd>{{ label('categories', material.category_id) }}</dd>
+            <dd>{{ referenceLabel(material.category, material.category_id) }}</dd>
           </div>
           <div class="material-fact">
             <dt>基础单位</dt>
-            <dd>{{ label('units', material.base_unit_id) }}</dd>
+            <dd>{{ referenceLabel(material.base_unit, material.base_unit_id) }}</dd>
           </div>
           <div class="material-fact">
             <dt>状态</dt>
@@ -195,6 +192,7 @@ onMounted(() => {
       v-if="material"
       :material-id="materialId"
       :base-unit-id="material.base_unit_id"
+      :base-unit="material.base_unit"
       :units="units"
       @changed="onConversionsChanged"
     />

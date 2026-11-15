@@ -12,6 +12,8 @@ import { fieldInput, mockApi, ok, type StubRoute } from './support/api-mock'
 const MATERIAL_ID = 101
 const now = '2026-09-01T10:00:00Z'
 
+const categoryRef = { id: 11, code: 'CAT-01', name: '金属件', deleted: false, status: 'active' }
+
 const material = {
   id: MATERIAL_ID,
   code: 'M-001',
@@ -22,6 +24,9 @@ const material = {
   remark: null,
   created_at: now,
   updated_at: now,
+  // 后端内联快照：列表与详情直接渲染，不再反查分类 / 单位选项表
+  category: categoryRef,
+  base_unit: { id: 1, code: 'KG', name: '千克', deleted: false, status: 'active' },
 }
 
 const otherMaterial = { ...material, id: 102, code: 'M-002', name: '螺丝' }
@@ -36,6 +41,8 @@ const sku = {
   remark: null,
   created_at: now,
   updated_at: now,
+  material: { id: MATERIAL_ID, code: 'M-001', name: '钢板', deleted: false, status: 'active' },
+  unit: { id: 1, code: 'KG', name: '千克', deleted: false, status: 'active' },
 }
 
 const kgUnit = {
@@ -83,6 +90,8 @@ const gramConversion = {
   factor: '1000',
   created_at: now,
   updated_at: now,
+  from_unit: { id: 1, code: 'KG', name: '千克', deleted: false, status: 'active' },
+  to_unit: { id: 4, code: 'G', name: '克', deleted: false, status: 'active' },
 }
 
 /** 基础信息里某个字段的取值元素（标签与取值分开渲染） */
@@ -359,6 +368,8 @@ test('renders every stored conversion with its own direction and editing keeps i
     factor: '0.001',
     created_at: now,
     updated_at: now,
+    from_unit: { id: 4, code: 'G', name: '克', deleted: false, status: 'active' },
+    to_unit: { id: 1, code: 'KG', name: '千克', deleted: false, status: 'active' },
   }
 
   await mockApi(
