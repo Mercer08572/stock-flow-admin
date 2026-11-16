@@ -154,6 +154,67 @@ export interface StockLayer {
   updated_at: string
 }
 
+/** 批次状态：active 参与常规流转，inactive 表示停用（禁止入库、退出自动分配） */
+export type BatchStatus = 'active' | 'inactive'
+
+/**
+ * 库存批次（`GET /inventory/batches`）。
+ *
+ * 批次是 SKU 级主数据：没有数量字段，也没有 warehouse_id；
+ * 批次库存要按 `batch_id` 到库存层上过滤（见 `BatchWarehouseStock`）。
+ * `production_date` / `expiration_date` 是日历日，固定 `YYYY-MM-DD`。
+ */
+export interface InventoryBatch {
+  id: number
+  sku_id: number
+  /** 后端为 *Reference + omitempty：SKU 被软删除后字段仍保留并标记 deleted */
+  sku?: Reference
+  batch_no: string
+  first_received_at: string | null
+  production_date: string | null
+  expiration_date: string | null
+  status: BatchStatus
+  /** 出库优先级：越小越先出，10 为默认；非批次库存层按 10 参与排序 */
+  dispatch_priority: number
+  remark: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** 某批次在单个仓库的库存分布（由库存层按 batch_id 聚合得到） */
+export interface BatchWarehouseStock {
+  warehouse_id: number
+  warehouse?: Reference
+  on_hand_qty: string
+  reserved_qty: string
+  available_qty: string
+  layer_count: number
+}
+
+/** 批次详情：主数据 + 按仓库聚合的库存分布 */
+export interface InventoryBatchDetail extends InventoryBatch {
+  stocks: BatchWarehouseStock[]
+}
+
+export interface CreateBatchInput {
+  sku_id: number
+  batch_no: string
+  production_date?: string | null
+  expiration_date?: string | null
+  status?: BatchStatus
+  dispatch_priority?: number | null
+  remark?: string | null
+}
+
+/** 编辑批次：sku_id / batch_no 不可改；省略 status / dispatch_priority 时后端保留原值 */
+export interface UpdateBatchInput {
+  production_date?: string | null
+  expiration_date?: string | null
+  status?: BatchStatus
+  dispatch_priority?: number | null
+  remark?: string | null
+}
+
 /** 预留单生命周期状态：仍有未处理数量时为 active，全部释放/消耗后为 closed */
 export type ReservationStatus = 'active' | 'closed'
 

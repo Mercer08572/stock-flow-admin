@@ -70,6 +70,11 @@ export enum MaterialStatus {
   StatusInactive = "inactive",
 }
 
+export enum InventoryBatchStatus {
+  BatchStatusActive = "active",
+  BatchStatusInactive = "inactive",
+}
+
 export enum CategoryStatus {
   StatusActive = "active",
   StatusInactive = "inactive",
@@ -309,6 +314,63 @@ export interface HealthStatusResponse {
   status?: string;
 }
 
+export interface InventoryBatch {
+  batch_no?: string;
+  created_at?: string;
+  dispatch_priority?: number;
+  expiration_date?: string;
+  first_received_at?: string;
+  id?: number;
+  production_date?: string;
+  remark?: string;
+  sku?: SkuReference;
+  sku_id?: number;
+  status?: InventoryBatchStatus;
+  updated_at?: string;
+}
+
+export interface InventoryBatchDetail {
+  batch_no?: string;
+  created_at?: string;
+  dispatch_priority?: number;
+  expiration_date?: string;
+  first_received_at?: string;
+  id?: number;
+  production_date?: string;
+  remark?: string;
+  sku?: SkuReference;
+  sku_id?: number;
+  status?: InventoryBatchStatus;
+  stocks?: InventoryBatchWarehouseStock[];
+  updated_at?: string;
+}
+
+export interface InventoryBatchListResult {
+  items?: InventoryBatch[];
+  limit?: number;
+  offset?: number;
+  total?: number;
+}
+
+export interface InventoryBatchWarehouseStock {
+  available_qty?: string;
+  layer_count?: number;
+  on_hand_qty?: string;
+  reserved_qty?: string;
+  warehouse?: WarehouseReference;
+  warehouse_id?: number;
+}
+
+export interface InventoryCreateBatchRequest {
+  batch_no?: string;
+  dispatch_priority?: number;
+  expiration_date?: string;
+  production_date?: string;
+  remark?: string;
+  sku_id?: number;
+  status?: string;
+}
+
 export interface InventoryLayerListResult {
   items?: InventoryStockLayer[];
   limit?: number;
@@ -480,6 +542,14 @@ export interface InventoryStockQuantities {
   available_qty?: string;
   on_hand_qty?: string;
   reserved_qty?: string;
+}
+
+export interface InventoryUpdateBatchRequest {
+  dispatch_priority?: number;
+  expiration_date?: string;
+  production_date?: string;
+  remark?: string;
+  status?: string;
 }
 
 export interface InventoryDecreaseStockHTTPRequest {

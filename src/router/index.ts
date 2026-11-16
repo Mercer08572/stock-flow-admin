@@ -67,6 +67,19 @@ export const router = createRouter({
           meta: { title: '库存流水' },
         },
         {
+          path: 'inventory/batches',
+          name: 'inventory-batches',
+          component: () => import('@/features/inventory/BatchListView.vue'),
+          meta: { title: '库存批次' },
+        },
+        {
+          // 静态路径优先于参数段：`inventory/batches` 仍命中上面的列表页
+          path: 'inventory/batches/:id(\\d+)',
+          name: 'inventory-batch-detail',
+          component: () => import('@/features/inventory/BatchDetailView.vue'),
+          meta: { title: '批次详情' },
+        },
+        {
           path: 'master-data/materials',
           name: 'material-list',
           component: () => import('@/features/master-data/materials/MaterialListView.vue'),

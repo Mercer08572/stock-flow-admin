@@ -66,5 +66,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   INVENTORY_STOCK_NOT_FOUND: '库存记录不存在',
   INVENTORY_WAREHOUSE_NOT_FOUND: '所选仓库不存在',
   INVENTORY_SKU_NOT_FOUND: '所选 SKU 不存在',
-  INVENTORY_BATCH_NOT_FOUND: '所选批次不存在',
+  INVENTORY_BATCH_NOT_FOUND: '批次不存在',
+  INVENTORY_BATCH_REFERENCE_INVALID: '所选批次不存在',
+  INVENTORY_BATCH_INACTIVE: '批次已停用，不能再入库或预留',
+  INVENTORY_BATCH_NO_DUPLICATE: '该 SKU 下批号已存在，请更换后重试',
+  INVENTORY_BATCH_REFERENCED: '批次已有库存或流水引用，请改用停用',
 }

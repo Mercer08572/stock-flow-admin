@@ -16,6 +16,7 @@ import {
   Layers3,
   LogOut,
   Menu,
+  PackageOpen,
   PackageSearch,
   PanelLeftClose,
   PanelLeftOpen,
@@ -71,6 +72,7 @@ const menuOptions: MenuOption[] = [
   { label: '库存预留', key: '/inventory/reservations', icon: icon(Bookmark) },
   { label: '库存余额', key: '/inventory/stocks', icon: icon(PackageSearch) },
   { label: '库存流水', key: '/inventory/movements', icon: icon(History) },
+  { label: '库存批次', key: '/inventory/batches', icon: icon(PackageOpen) },
   {
     label: '主数据',
     key: 'master-data',

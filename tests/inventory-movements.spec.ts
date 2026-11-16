@@ -104,7 +104,7 @@ const headers = (page: Page) =>
 test.describe('库存流水（桌面）', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
-  test('places 库存流水 between 库存余额 and 主数据', async ({ page }) => {
+  test('places 库存流水 and 库存批次 between 库存余额 and 主数据', async ({ page }) => {
     await mockApi(page, [
       {
         method: 'GET',
@@ -118,7 +118,14 @@ test.describe('库存流水（桌面）', () => {
     await page.locator('.app-sidebar .n-menu-item-content-header').first().waitFor()
 
     const labels = await headers(page)
-    expect(labels.slice(0, 5)).toEqual(['工作台', '库存预留', '库存余额', '库存流水', '主数据'])
+    expect(labels.slice(0, 6)).toEqual([
+      '工作台',
+      '库存预留',
+      '库存余额',
+      '库存流水',
+      '库存批次',
+      '主数据',
+    ])
 
     await page.locator('.n-menu-item-content').filter({ hasText: '库存流水' }).click()
     await expect(page).toHaveURL('/inventory/movements')
