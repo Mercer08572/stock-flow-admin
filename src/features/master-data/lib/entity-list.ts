@@ -16,9 +16,9 @@ import { getErrorDetail, getErrorMessage, type ErrorDetail } from '@/api/error'
 import { clearReferenceOptions } from '@/features/master-data/lib/reference-cache'
 import { clearUnitCatalog } from '@/features/master-data/lib/unit-catalog'
 
-import type { BaseEntity, ListResult } from '@/types/api'
+import type { ListResult } from '@/types/api'
 
-export interface UseEntityListOptions<T extends BaseEntity> {
+export interface UseEntityListOptions<T extends { id: number }> {
   /** 资源名，用于提示文案（如「物料已删除」） */
   title: string
   /** `offset` 为 0 基；响应必须带 `total` 用于分页 */
@@ -30,10 +30,16 @@ export interface UseEntityListOptions<T extends BaseEntity> {
   disable?: ((id: number) => Promise<unknown>) | undefined
   /** 停用确认框里的补充说明；仅仓库传入 */
   disableHint?: string | undefined
+  /**
+   * 删除 / 停用确认框里展示的行标识。
+   * 缺省用 `code + name`；没有这两个字段的资源（如批次）必须传入，
+   * 否则确认框里只剩一个裸 ID，容易误删。
+   */
+  labelOf?: ((row: T) => string) | undefined
 }
 
 /** 主数据列表的共享状态机；返回的 ref 可直接在 `<script setup>` 模板中使用 */
-export function useEntityList<T extends BaseEntity>(options: UseEntityListOptions<T>) {
+export function useEntityList<T extends { id: number }>(options: UseEntityListOptions<T>) {
   const rows = ref<T[]>([]) as { value: T[] }
   const loading = ref(false)
   const errorDetail = ref<ErrorDetail | null>(null)
@@ -48,6 +54,10 @@ export function useEntityList<T extends BaseEntity>(options: UseEntityListOption
   const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
   const message = useMessage()
   const dialog = useDialog()
+
+  function labelOf(row: T) {
+    return options.labelOf ? options.labelOf(row) : rowLabel(row)
+  }
 
   /** 只加载当前页；分页切换不清理引用缓存，避免每翻一页都让下拉重新请求 */
   async function loadCurrentPage() {
@@ -84,6 +94,12 @@ export function useEntityList<T extends BaseEntity>(options: UseEntityListOption
     await loadCurrentPage()
   }
 
+  /** 筛选条件变化后回到第一页并重新加载 */
+  async function reloadFromStart() {
+    offset.value = 0
+    await reload()
+  }
+
   async function goToPage(targetPage: number) {
     if (loading.value) return
     const nextOffset = Math.max(0, (targetPage - 1) * pageSize)
@@ -113,7 +129,7 @@ export function useEntityList<T extends BaseEntity>(options: UseEntityListOption
   function confirmDelete(row: T) {
     dialog.warning({
       title: `删除${options.title}`,
-      content: `确认删除「${rowLabel(row)}」吗？删除后不可恢复。`,
+      content: `确认删除「${labelOf(row)}」吗？删除后不可恢复。`,
       positiveText: '确认删除',
       negativeText: '取消',
       onPositiveClick: () => deleteRow(row),
@@ -141,7 +157,7 @@ export function useEntityList<T extends BaseEntity>(options: UseEntityListOption
 
     dialog.warning({
       title: `停用${options.title}`,
-      content: `确认停用「${rowLabel(row)}」吗？${options.disableHint ?? ''}`,
+      content: `确认停用「${labelOf(row)}」吗？${options.disableHint ?? ''}`,
       positiveText: '确认停用',
       negativeText: '取消',
       onPositiveClick: () => disableRow(row),
@@ -176,6 +192,7 @@ export function useEntityList<T extends BaseEntity>(options: UseEntityListOption
     pageCount,
     pageSize,
     reload,
+    reloadFromStart,
     goToPage,
     openCreate,
     openEdit,
@@ -185,6 +202,7 @@ export function useEntityList<T extends BaseEntity>(options: UseEntityListOption
   }
 }
 
-function rowLabel(row: BaseEntity) {
-  return `${row.code ?? ''} ${row.name ?? ''}`.trim()
+/** 默认行标识：主数据资源普遍有 code / name；两者都缺时退回 ID，避免空文案 */
+function rowLabel(row: { id: number; code?: string; name?: string }) {
+  return `${row.code ?? ''} ${row.name ?? ''}`.trim() || `#${row.id}`
 }

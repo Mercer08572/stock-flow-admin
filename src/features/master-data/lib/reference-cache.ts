@@ -14,6 +14,7 @@
 
 import { categoriesApi } from '@/api/categories'
 import { materialsApi } from '@/api/materials'
+import { skusApi } from '@/api/skus'
 import { unitsApi } from '@/api/units'
 
 import type { FieldOption, ReferenceKey } from '@/features/master-data/lib/entity-form'
@@ -46,6 +47,7 @@ const loaders: Record<ReferenceKey, () => Promise<{ items: ReferenceItem[] }>> =
   categories: () => categoriesApi.list({ ...REFERENCE_QUERY }),
   units: () => unitsApi.list({ ...REFERENCE_QUERY }),
   materials: () => materialsApi.list({ ...REFERENCE_QUERY }),
+  skus: () => skusApi.list({ ...REFERENCE_QUERY }),
 }
 
 const cache = new Map<ReferenceKey, Promise<FieldOption[]>>()

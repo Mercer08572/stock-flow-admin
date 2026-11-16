@@ -12,6 +12,7 @@
 import { computed, ref, watch } from 'vue'
 import {
   NButton,
+  NDatePicker,
   NDrawer,
   NDrawerContent,
   NForm,
@@ -222,6 +223,21 @@ async function submit() {
               filterable
               :placeholder="`请选择${field.label}`"
               @update:value="field.onChange?.($event)"
+            />
+            <NDatePicker
+              v-else-if="field.type === 'date'"
+              :formatted-value="
+                typeof form[field.key] === 'string' && form[field.key] !== ''
+                  ? form[field.key]
+                  : null
+              "
+              class="form-control"
+              value-format="yyyy-MM-dd"
+              type="date"
+              clearable
+              :disabled="field.disabled === true"
+              :placeholder="field.placeholder"
+              @update:formatted-value="form[field.key] = $event"
             />
             <NInput
               v-else

@@ -9,7 +9,7 @@ import { h, type VNode } from 'vue'
 import { NButton } from 'naive-ui'
 
 import type { DataTableColumn } from '@/components/common/data-table'
-import type { BaseEntity } from '@/types/api'
+import type { EntityStatus } from '@/types/api'
 
 export interface RowActionHandlers<T> {
   onEdit: (row: T) => void
@@ -20,7 +20,7 @@ export interface RowActionHandlers<T> {
   onDetail?: ((row: T) => void) | undefined
 }
 
-export function actionColumn<T extends BaseEntity>(
+export function actionColumn<T extends { status: EntityStatus }>(
   handlers: RowActionHandlers<T>,
 ): DataTableColumn<T> {
   return {

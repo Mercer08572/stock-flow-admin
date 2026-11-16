@@ -14,7 +14,7 @@ import { referenceLabel, referenceName } from '@/components/common/reference-dis
 
 import type { Reference } from '@/types/api'
 
-export type FieldType = 'text' | 'number' | 'textarea' | 'select'
+export type FieldType = 'text' | 'number' | 'textarea' | 'select' | 'date'
 
 export interface FieldOption {
   label: string
@@ -26,7 +26,7 @@ export interface FieldOption {
 }
 
 /** 引用型下拉的取数来源，与 `lib/reference-cache.ts` 的加载函数一一对应 */
-export type ReferenceKey = 'categories' | 'units' | 'materials'
+export type ReferenceKey = 'categories' | 'units' | 'materials' | 'skus'
 
 export interface FieldConfig {
   key: string
@@ -68,7 +68,13 @@ export function createEmptyForm(fields: FieldConfig[]): FormValues {
       form[field.key] = field.lockedValue
       continue
     }
-    form[field.key] = field.key === 'status' ? 'active' : field.type === 'number' ? null : ''
+    // 数值与日期用 null：NInputNumber / NDatePicker 都不接受空字符串
+    form[field.key] =
+      field.key === 'status'
+        ? 'active'
+        : field.type === 'number' || field.type === 'date'
+          ? null
+          : ''
   }
   return form
 }
@@ -79,7 +85,8 @@ export function fillForm(fields: FieldConfig[], entity: Record<string, unknown>)
   for (const field of fields) {
     const value = entity[field.key]
     if (value === null || value === undefined || value === '') {
-      form[field.key] = field.lockedValue ?? (field.type === 'number' ? null : '')
+      form[field.key] =
+        field.lockedValue ?? (field.type === 'number' || field.type === 'date' ? null : '')
     } else {
       form[field.key] = value as string | number
     }

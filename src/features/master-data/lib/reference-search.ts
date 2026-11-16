@@ -8,6 +8,7 @@
 
 import { categoriesApi } from '@/api/categories'
 import { materialsApi } from '@/api/materials'
+import { skusApi } from '@/api/skus'
 import { unitsApi } from '@/api/units'
 import type {
   ReferenceSelectPage,
@@ -45,5 +46,7 @@ function loadSource(
       return unitsApi.list(query)
     case 'materials':
       return materialsApi.list(query)
+    case 'skus':
+      return skusApi.list(query)
   }
 }
