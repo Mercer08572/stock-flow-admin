@@ -300,14 +300,15 @@ watch(
           >
             <span class="qty-overview__dot" :class="`qty-overview__dot--${segment.key}`" />
             <!--
-              标签、数值、百分比放在同一段文本里：视觉间距由文本空格表达，
-              读屏软件读到的也是「已消耗 1 · 20%」，而不是被元素边界粘成「已消耗120%」。
-              数值单独放大加粗，仍与进度条同色同序。
+              两行结构：第一行「名称 · 占比」，第二行数量。
+              与「预留总量」的「标签在上、数字在下」保持同一阅读节奏，
+              三段数字纵向对齐后才能横向比较；0 值同样保留独立数字行。
             -->
-            <span class="qty-overview__item-text">
-              {{ segment.label }}
+            <span class="qty-overview__item-body">
+              <span class="qty-overview__item-label">
+                {{ segment.label }} · {{ segment.percentLabel }}
+              </span>
               <span class="qty-overview__item-value">{{ segment.qty }}</span>
-              · {{ segment.percentLabel }}
             </span>
           </li>
         </ul>
@@ -501,13 +502,15 @@ watch(
 .qty-overview__item {
   display: flex;
   flex: 1 1 140px;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   min-width: 0;
 }
 
 .qty-overview__dot {
   flex: none;
+  /* 8px 圆点对齐 12px 标签行（行高约 17px）的视觉中线 */
+  margin-top: 4px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -525,8 +528,14 @@ watch(
   background: var(--qty-remaining);
 }
 
-.qty-overview__item-text {
+.qty-overview__item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
+}
+
+.qty-overview__item-label {
   color: var(--color-text-muted);
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -534,9 +543,11 @@ watch(
 
 .qty-overview__item-value {
   color: var(--color-text);
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .summary {

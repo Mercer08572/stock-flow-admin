@@ -235,9 +235,10 @@ test.describe('库存预留（桌面）', () => {
     const qtyOverview = drawer.getByRole('region', { name: '预留数量分布' })
     await expect(qtyOverview).toBeVisible()
     await expect(qtyOverview.getByTestId('qty-total')).toHaveText('5')
-    await expect(qtyOverview.getByTestId('qty-segment-consumed')).toHaveText('已消耗 1 · 20%')
-    await expect(qtyOverview.getByTestId('qty-segment-released')).toHaveText('已释放 1 · 20%')
-    await expect(qtyOverview.getByTestId('qty-segment-remaining')).toHaveText('剩余 3 · 60%')
+    // 图例为两行结构：第一行「名称 · 占比」，第二行数量（换行由块级元素产生）
+    await expect(qtyOverview.getByTestId('qty-segment-consumed')).toHaveText(/已消耗 · 20%\s*1/)
+    await expect(qtyOverview.getByTestId('qty-segment-released')).toHaveText(/已释放 · 20%\s*1/)
+    await expect(qtyOverview.getByTestId('qty-segment-remaining')).toHaveText(/剩余 · 60%\s*3/)
 
     // 操作日志来自库存流水，必须按当前预留单过滤
     await expect(drawer.getByText('操作日志')).toBeVisible()
