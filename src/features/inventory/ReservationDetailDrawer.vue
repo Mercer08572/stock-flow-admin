@@ -19,6 +19,7 @@ import {
   operationTypeLabel,
   operationTypeTagType,
 } from '@/features/inventory/movement-list'
+import { reservationQuantitySegments } from '@/features/inventory/reservation-quantity'
 import {
   closeReasonLabel,
   formatReservationSource,
@@ -43,6 +44,14 @@ const visible = computed({
 const detailLoading = ref(false)
 const detailError = ref<ErrorDetail | null>(null)
 const detail = ref<Reservation | null>(null)
+
+/**
+ * 数量分布：进度条分段与图例百分比来自同一份计算，
+ * 避免出现「数字 20%、条宽 21%」这种用户没法自己核对的画面。
+ */
+const quantitySegments = computed(() =>
+  detail.value ? reservationQuantitySegments(detail.value) : [],
+)
 
 const movementLog = ref<InventoryMovement[]>([])
 const movementLogTotal = ref(0)
@@ -265,6 +274,45 @@ watch(
           </NButton>
         </div>
       </template>
+      <!--
+        数量分布：总量单独放大，下钻的分段条与图例同序同色。
+        进度条本身只承载比例（aria-hidden），数值全部由图例文本提供，
+        因此释放量为 0 时该段宽度为 0，但「已释放 0 · 0%」仍会照常显示。
+      -->
+      <section v-if="detail" class="qty-overview" aria-label="预留数量分布">
+        <p class="qty-overview__caption">预留总量</p>
+        <p class="qty-overview__total" data-testid="qty-total">{{ detail.total_qty }}</p>
+        <div class="qty-overview__bar" aria-hidden="true">
+          <span
+            v-for="segment in quantitySegments"
+            :key="segment.key"
+            class="qty-overview__segment"
+            :class="`qty-overview__segment--${segment.key}`"
+            :style="{ flexGrow: segment.share }"
+          />
+        </div>
+        <ul class="qty-overview__legend">
+          <li
+            v-for="segment in quantitySegments"
+            :key="segment.key"
+            class="qty-overview__item"
+            :data-testid="`qty-segment-${segment.key}`"
+          >
+            <span class="qty-overview__dot" :class="`qty-overview__dot--${segment.key}`" />
+            <!--
+              标签、数值、百分比放在同一段文本里：视觉间距由文本空格表达，
+              读屏软件读到的也是「已消耗 1 · 20%」，而不是被元素边界粘成「已消耗120%」。
+              数值单独放大加粗，仍与进度条同色同序。
+            -->
+            <span class="qty-overview__item-text">
+              {{ segment.label }}
+              <span class="qty-overview__item-value">{{ segment.qty }}</span>
+              · {{ segment.percentLabel }}
+            </span>
+          </li>
+        </ul>
+      </section>
+
       <dl v-if="detail" class="summary">
         <div>
           <dt>仓库</dt>
@@ -291,22 +339,6 @@ watch(
               {{ reservationStatusLabel(detail.status) }}
             </NTag>
           </dd>
-        </div>
-        <div>
-          <dt>预留数量</dt>
-          <dd>{{ detail.total_qty }}</dd>
-        </div>
-        <div>
-          <dt>已释放</dt>
-          <dd>{{ detail.released_qty }}</dd>
-        </div>
-        <div>
-          <dt>已消耗</dt>
-          <dd>{{ detail.consumed_qty }}</dd>
-        </div>
-        <div>
-          <dt>剩余</dt>
-          <dd>{{ detail.remaining_qty }}</dd>
         </div>
         <div>
           <dt>关闭原因</dt>
@@ -397,6 +429,116 @@ watch(
   padding-right: 6px;
 }
 
+/*
+ * 数量分布用色：灰 = 已消耗（已完结），蓝 = 已释放（Info 语义），
+ * 橙 = 剩余（与「预留中」的 Warning 标签同色）。
+ * 目前只有这一处使用，先作为组件内局部令牌；等第二处复用同一条分布条时再上提到
+ * `styles/main.css` 的全局令牌里，避免为单一消费方提前扩大全局调色板。
+ */
+.qty-overview {
+  --qty-consumed: #9aa3a0;
+  --qty-released: #2080f0;
+  --qty-remaining: #f0a020;
+  padding: 14px 16px 16px;
+  margin: 0 0 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.qty-overview__caption {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.qty-overview__total {
+  overflow-wrap: anywhere;
+  margin: 2px 0 10px;
+  color: var(--color-text);
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.qty-overview__bar {
+  display: flex;
+  overflow: hidden;
+  height: 12px;
+  border-radius: 999px;
+  background: #eef1f0;
+}
+
+/* 宽度完全由 `flexGrow` 的比例决定：段间不留缝，比例才和数字一致 */
+.qty-overview__segment {
+  flex: 0 0 0;
+  height: 100%;
+}
+
+.qty-overview__segment--consumed {
+  background: var(--qty-consumed);
+}
+
+.qty-overview__segment--released {
+  background: var(--qty-released);
+}
+
+.qty-overview__segment--remaining {
+  background: var(--qty-remaining);
+}
+
+.qty-overview__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 窄屏按 140px 最小宽自动折行，320px 时每行一项，不需要横向滚动 */
+.qty-overview__item {
+  display: flex;
+  flex: 1 1 140px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.qty-overview__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.qty-overview__dot--consumed {
+  background: var(--qty-consumed);
+}
+
+.qty-overview__dot--released {
+  background: var(--qty-released);
+}
+
+.qty-overview__dot--remaining {
+  background: var(--qty-remaining);
+}
+
+.qty-overview__item-text {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.qty-overview__item-value {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -458,6 +600,10 @@ watch(
 }
 
 @media (max-width: 680px) {
+  .qty-overview {
+    padding: 12px 14px 14px;
+  }
+
   .summary {
     grid-template-columns: minmax(0, 1fr);
   }

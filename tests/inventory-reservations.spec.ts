@@ -231,6 +231,14 @@ test.describe('库存预留（桌面）', () => {
     await expect(drawer.getByText('无批次')).toBeVisible()
     await expect(drawer.locator('td[data-col-key="remaining_qty"]')).toHaveText('3')
 
+    // 数量分布：总量单独放大，图例与分段条共用同一份比例（5 = 消耗 1 + 释放 1 + 剩余 3）
+    const qtyOverview = drawer.getByRole('region', { name: '预留数量分布' })
+    await expect(qtyOverview).toBeVisible()
+    await expect(qtyOverview.getByTestId('qty-total')).toHaveText('5')
+    await expect(qtyOverview.getByTestId('qty-segment-consumed')).toHaveText('已消耗 1 · 20%')
+    await expect(qtyOverview.getByTestId('qty-segment-released')).toHaveText('已释放 1 · 20%')
+    await expect(qtyOverview.getByTestId('qty-segment-remaining')).toHaveText('剩余 3 · 60%')
+
     // 操作日志来自库存流水，必须按当前预留单过滤
     await expect(drawer.getByText('操作日志')).toBeVisible()
     await expect(drawer.locator('td[data-col-key="operation_type"]')).toHaveText(['预留'])
