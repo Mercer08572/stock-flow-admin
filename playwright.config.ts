@@ -18,5 +18,8 @@ export default defineConfig({
     command: './node_modules/.bin/vite --host 127.0.0.1 --port 5173',
     url: 'http://127.0.0.1:5173/login',
     reuseExistingServer: !process.env.CI,
+    // e2e 需要覆盖「API 测试」页，显式打开构建期开关。
+    // 本地复用已启动的 dev server 时，以该服务的 .env 为准（默认已开启）。
+    env: { VITE_ENABLE_API_TEST: 'true' },
   },
 })

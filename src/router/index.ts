@@ -5,6 +5,7 @@ import {
   finishPageProgress,
   startPageProgress,
 } from '@/components/layout/page-progress'
+import { apiTestEnabled } from '@/features/api-test/enabled'
 import { useAuthStore } from '@/features/auth/auth.store'
 import { pinia } from '@/stores'
 
@@ -134,6 +135,18 @@ export const router = createRouter({
           component: () => import('@/features/api-monitor/ApiMonitorView.vue'),
           meta: { title: 'API 监控' },
         },
+        // 开发调试页：未开启 VITE_ENABLE_API_TEST 时不注册路由，
+        // 直接访问会落入下面的 catch-all「页面不存在」，菜单项也同步隐藏。
+        ...(apiTestEnabled
+          ? [
+              {
+                path: 'settings/api-test',
+                name: 'api-test',
+                component: () => import('@/features/api-test/ApiTestView.vue'),
+                meta: { title: 'API 测试' },
+              },
+            ]
+          : []),
         {
           path: 'account/password',
           name: 'change-password',

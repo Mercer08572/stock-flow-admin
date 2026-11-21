@@ -11,6 +11,7 @@ import {
   ChevronDown,
   CircleGauge,
   CircleX,
+  FlaskConical,
   History,
   KeyRound,
   Layers3,
@@ -45,6 +46,7 @@ import {
   type ShellTab,
 } from '@/components/layout/shell-tabs'
 import { readSidebarCollapsed, writeSidebarCollapsed } from '@/components/layout/sidebar-collapsed'
+import { apiTestEnabled } from '@/features/api-test/enabled'
 import { useAuthStore } from '@/features/auth/auth.store'
 
 const route = useRoute()
@@ -93,6 +95,10 @@ const menuOptions: MenuOption[] = [
       { label: 'API 密钥', key: '/settings/api-keys', icon: icon(KeyRound) },
       { label: '审计日志', key: '/settings/audit-logs', icon: icon(ScrollText) },
       { label: 'API 监控', key: '/settings/api-monitor', icon: icon(Activity) },
+      // 开发调试入口：与路由共用同一个构建期开关，关闭时菜单项不渲染。
+      ...(apiTestEnabled
+        ? [{ label: 'API 测试', key: '/settings/api-test', icon: icon(FlaskConical) }]
+        : []),
     ],
   },
 ]

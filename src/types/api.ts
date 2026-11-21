@@ -315,6 +315,76 @@ export interface InventoryMovement {
 }
 
 /**
+ * 库存变更接口（`POST /inventory/{increase,reserve,decrease,release}`）的统一返回体。
+ *
+ * 数量字段全部是 `NUMERIC(20,6)` 的字符串形式，前端只做展示、不做浮点运算。
+ * `operation_type` 是后端实际执行的操作：`/inventory/decrease` 带 `reservation_id`
+ * 时返回 `decrease_reserved`，不带时返回 `decrease_available`。
+ */
+export interface StockQuantities {
+  on_hand_qty: string
+  reserved_qty: string
+  available_qty: string
+}
+
+/** 一次变更写入的库存流水引用（明细可通过库存流水页查询） */
+export interface MovementRef {
+  id: number
+  stock_layer_id: number | null
+  qty: string
+}
+
+/** 预留单在库存层上的分配明细快照 */
+export interface ReservationAllocation {
+  reservation_item_id: number
+  stock_layer_id: number
+  batch_id: number | null
+  qty: string
+}
+
+/** 变更操作返回的预留单快照；仅预留类操作返回 */
+export interface ReservationSnapshot {
+  id: number
+  status: ReservationStatus
+  close_reason: ReservationCloseReason | null
+  total_qty: string
+  released_qty: string
+  consumed_qty: string
+  remaining_qty: string
+  allocations: ReservationAllocation[]
+}
+
+export interface StockOperationResult {
+  operation_type: MovementOperationType
+  warehouse_id: number
+  sku_id: number
+  batch_id: number | null
+  qty: string
+  stock_after: StockQuantities
+  reservation?: ReservationSnapshot
+  movements: MovementRef[]
+}
+
+/**
+ * 库存变更请求体。
+ *
+ * 仅「API 测试」开发调试页使用；生产页面不直接调用变更接口（库存对管理端是只读资源）。
+ * `batch_id` / `reservation_id` / 来源字段可省略；`qty` 仅在预留释放时可以省略
+ * （省略表示释放该预留单的全部剩余）。
+ */
+export interface InventoryOperationInput {
+  warehouse_id: number
+  sku_id: number
+  batch_id?: number
+  reservation_id?: number
+  qty?: string
+  idempotency_key: string
+  source_type?: string
+  source_id?: string
+  source_line_id?: string
+}
+
+/**
  * 创建入参（`POST /xxx`）。
  *
  * 与下面的 `Update*Input` 不同：创建时可空字段**可以省略**（后端是可空指针，省略即空），
