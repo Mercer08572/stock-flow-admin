@@ -314,109 +314,118 @@ watch(
         </ul>
       </section>
 
-      <dl v-if="detail" class="summary">
-        <div>
-          <dt>仓库</dt>
-          <dd>
-            {{ referenceCode(detail.warehouse, detail.warehouse_id) }} /
-            {{ referenceName(detail.warehouse, detail.warehouse_id) }}
-          </dd>
+      <section v-if="detail" class="detail-section">
+        <h3 class="detail-section__title">基本信息</h3>
+        <div class="detail-section__body">
+          <dl class="summary">
+            <div>
+              <dt>仓库</dt>
+              <dd>
+                {{ referenceCode(detail.warehouse, detail.warehouse_id) }} /
+                {{ referenceName(detail.warehouse, detail.warehouse_id) }}
+              </dd>
+            </div>
+            <div>
+              <dt>SKU</dt>
+              <dd>
+                {{ referenceCode(detail.sku, detail.sku_id) }} /
+                {{ referenceName(detail.sku, detail.sku_id) }}
+              </dd>
+            </div>
+            <div>
+              <dt>状态</dt>
+              <dd>
+                <NTag
+                  :type="detail.status === 'active' ? 'warning' : 'default'"
+                  size="small"
+                  :bordered="false"
+                >
+                  {{ reservationStatusLabel(detail.status) }}
+                </NTag>
+              </dd>
+            </div>
+            <div>
+              <dt>关闭原因</dt>
+              <dd>{{ closeReasonLabel(detail.close_reason) }}</dd>
+            </div>
+            <div>
+              <dt>来源</dt>
+              <dd>{{ formatReservationSource(detail) }}</dd>
+            </div>
+            <div>
+              <dt>操作人</dt>
+              <dd>{{ detail.actor_label || '-' }}</dd>
+            </div>
+            <div class="summary__wide">
+              <dt>幂等键</dt>
+              <dd class="summary__key">{{ detail.idempotency_key || '-' }}</dd>
+            </div>
+            <div>
+              <dt>创建时间</dt>
+              <dd>{{ formatDateTime(detail.created_at) }}</dd>
+            </div>
+            <div>
+              <dt>更新时间</dt>
+              <dd>{{ formatDateTime(detail.updated_at) }}</dd>
+            </div>
+          </dl>
         </div>
-        <div>
-          <dt>SKU</dt>
-          <dd>
-            {{ referenceCode(detail.sku, detail.sku_id) }} /
-            {{ referenceName(detail.sku, detail.sku_id) }}
-          </dd>
-        </div>
-        <div>
-          <dt>状态</dt>
-          <dd>
-            <NTag
-              :type="detail.status === 'active' ? 'warning' : 'default'"
-              size="small"
-              :bordered="false"
-            >
-              {{ reservationStatusLabel(detail.status) }}
-            </NTag>
-          </dd>
-        </div>
-        <div>
-          <dt>关闭原因</dt>
-          <dd>{{ closeReasonLabel(detail.close_reason) }}</dd>
-        </div>
-        <div>
-          <dt>来源</dt>
-          <dd>{{ formatReservationSource(detail) }}</dd>
-        </div>
-        <div>
-          <dt>操作人</dt>
-          <dd>{{ detail.actor_label || '-' }}</dd>
-        </div>
-        <div class="summary__wide">
-          <dt>幂等键</dt>
-          <dd class="summary__key">{{ detail.idempotency_key || '-' }}</dd>
-        </div>
-        <div>
-          <dt>创建时间</dt>
-          <dd>{{ formatDateTime(detail.created_at) }}</dd>
-        </div>
-        <div>
-          <dt>更新时间</dt>
-          <dd>{{ formatDateTime(detail.updated_at) }}</dd>
-        </div>
-      </dl>
+      </section>
 
-      <h3 class="detail-heading">分配明细</h3>
-      <AsyncState
-        :loading="detailLoading"
-        :error="detailError?.message ?? ''"
-        :error-trace-id="detailError?.traceId ?? ''"
-        :empty="!detailLoading && !detailError && (detail?.items?.length ?? 0) === 0"
-        empty-text="该预留单暂无分配明细"
-        @retry="retryDetail"
-      >
-        <DataTable
-          :columns="itemColumns"
-          :rows="detail?.items ?? []"
+      <section class="detail-section">
+        <h3 class="detail-section__title">分配明细</h3>
+        <AsyncState
+          :loading="detailLoading"
+          :error="detailError?.message ?? ''"
+          :error-trace-id="detailError?.traceId ?? ''"
+          :empty="!detailLoading && !detailError && (detail?.items?.length ?? 0) === 0"
           empty-text="该预留单暂无分配明细"
-          export-file-name="库存预留明细"
-        />
-      </AsyncState>
+          @retry="retryDetail"
+        >
+          <DataTable
+            :columns="itemColumns"
+            :rows="detail?.items ?? []"
+            empty-text="该预留单暂无分配明细"
+            export-file-name="库存预留明细"
+          />
+        </AsyncState>
+      </section>
 
-      <h3 class="detail-heading detail-heading--log">操作日志</h3>
-      <AsyncState
-        :loading="movementLogLoading"
-        :error="movementLogError?.message ?? ''"
-        :error-trace-id="movementLogError?.traceId ?? ''"
-        :empty="!movementLogLoading && !movementLogError && movementLog.length === 0"
-        empty-text="该预留单暂无操作记录"
-        @retry="retryMovementLog"
-      >
-        <DataTable
-          :columns="movementColumns"
-          :rows="movementLog"
+      <section class="detail-section">
+        <h3 class="detail-section__title">操作日志</h3>
+        <AsyncState
+          :loading="movementLogLoading"
+          :error="movementLogError?.message ?? ''"
+          :error-trace-id="movementLogError?.traceId ?? ''"
+          :empty="!movementLogLoading && !movementLogError && movementLog.length === 0"
           empty-text="该预留单暂无操作记录"
-          export-file-name="库存预留操作日志"
-        />
-        <div v-if="movementLogHasMore || movementLogMoreError" class="log-more">
-          <span class="log-more__hint">
-            已加载 {{ movementLog.length }} / 共 {{ movementLogTotal }} 条
-          </span>
-          <NAlert
-            v-if="movementLogMoreError"
-            type="error"
-            :show-icon="true"
-            :bordered="false"
-            class="log-more__error"
-          >
-            {{ movementLogMoreError }}
-          </NAlert>
-          <NButton size="small" :loading="movementLogLoadingMore" @click="loadMoreMovementLog">
-            {{ movementLogMoreError ? '重试加载' : '加载更多' }}
-          </NButton>
-        </div>
-      </AsyncState>
+          @retry="retryMovementLog"
+        >
+          <DataTable
+            :columns="movementColumns"
+            :rows="movementLog"
+            empty-text="该预留单暂无操作记录"
+            export-file-name="库存预留操作日志"
+          />
+          <div v-if="movementLogHasMore || movementLogMoreError" class="log-more">
+            <span class="log-more__hint">
+              已加载 {{ movementLog.length }} / 共 {{ movementLogTotal }} 条
+            </span>
+            <NAlert
+              v-if="movementLogMoreError"
+              type="error"
+              :show-icon="true"
+              :bordered="false"
+              class="log-more__error"
+            >
+              {{ movementLogMoreError }}
+            </NAlert>
+            <NButton size="small" :loading="movementLogLoadingMore" @click="loadMoreMovementLog">
+              {{ movementLogMoreError ? '重试加载' : '加载更多' }}
+            </NButton>
+          </div>
+        </AsyncState>
+      </section>
     </NDrawerContent>
   </NDrawer>
 </template>
@@ -441,7 +450,8 @@ watch(
   --qty-released: #2080f0;
   --qty-remaining: #f0a020;
   padding: 14px 16px 16px;
-  margin: 0 0 20px;
+  /* 与下方各面板同一纵向节奏（面板间距 16px） */
+  margin: 0 0 16px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
 }
@@ -550,11 +560,19 @@ watch(
   overflow-wrap: anywhere;
 }
 
+/*
+ * 中段字段表的三档层级：区块标题 16/700（带容器）> 字段值 14/600 > 字段标签 11/400。
+ *
+ * 标签保持 `--color-text-muted`（#67736f，白底对比度 4.94:1，满足 AA）；
+ * 若为了"更淡"改成 #8b9691 会掉到 3.06:1，12px 文字不再达标，
+ * 因此区分只靠「字号 + 字重 + 颜色深浅」三条轴叠加，而不是把标签越调越浅。
+ */
 .summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 20px;
-  margin: 0 0 20px;
+  gap: 14px 24px;
+  /* 已由外层「基本信息」面板提供留白，这里不再叠加外边距 */
+  margin: 0;
 }
 
 .summary > div {
@@ -563,33 +581,69 @@ watch(
 
 .summary dt {
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
 }
 
 .summary dd {
+  overflow-wrap: anywhere;
   margin: 3px 0 0;
   color: var(--color-text);
-  font-size: 13px;
-  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 状态标签自带一套字号，不跟着 dd 的 600 变粗 */
+.summary dd :deep(.n-tag) {
+  font-weight: 400;
 }
 
 .summary__wide {
   grid-column: 1 / -1;
 }
 
-.summary__key {
+/*
+ * 幂等键等标识类值：与正文一致地加重到 600。
+ *
+ * 注意等宽字体通常只有 Regular / Bold 两个字面，`500` 会被静默回落到 Regular
+ * （实测渲染与 400 像素级相同），因此这里直接写 600，让它落到真实存在的 Bold 上；
+ * 字号沿用改动前的 13px，视觉变化只来自字重，不额外放大长串标识。
+ * 带上 `.summary dd` 前缀是为了压过上面 `.summary dd`（0,1,1）的字号与字重。
+ */
+.summary dd.summary__key {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.detail-heading {
-  margin: 0 0 10px;
+/*
+ * 下方两个数据区各是一个面板：标题作为面板头，与抽屉顶部的「预留总量」卡片共用
+ * 同一套容器语言（边框 + 8px 圆角）。
+ *
+ * 标题必须明显大于字段值（16/700 vs 14/600），否则「分配明细」会被当成又一条字段；
+ * 面板边界则负责把两个表格与上方的字段表切断，页面不再是一整张白纸。
+ */
+.detail-section {
+  overflow: hidden;
+  margin: 0 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+/* 只有承载普通内容的区块（基本信息）需要正文内边距；表格类区块刻意保持贴边 */
+.detail-section__body {
+  padding: 16px;
+}
+
+.detail-section__title {
+  margin: 0;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.detail-heading--log {
-  margin-top: 24px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .log-more {
@@ -598,6 +652,8 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  /* 表格在面板里是贴边的，页脚需要自己让出内边距，否则会顶到面板边框 */
+  padding: 0 12px 12px;
   margin-top: 12px;
 }
 
@@ -613,6 +669,10 @@ watch(
 @media (max-width: 680px) {
   .qty-overview {
     padding: 12px 14px 14px;
+  }
+
+  .detail-section__body {
+    padding: 14px;
   }
 
   .summary {
