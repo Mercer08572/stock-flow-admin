@@ -25,7 +25,7 @@ import {
   batchStatusLabel,
   batchStockColumns,
   formatDateOnly,
-} from '@/features/inventory/batch'
+} from '@/features/inventory/batches/batch'
 
 import type { InventoryBatchDetail, UpdateBatchInput } from '@/types/api'
 

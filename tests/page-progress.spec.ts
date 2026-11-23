@@ -21,7 +21,7 @@ test('shows a progress bar while a lazy route chunk loads', async ({ page }) => 
   await expect(page.locator('.app-shell')).toBeVisible()
 
   // 延迟「库存余额」页面的懒加载模块，导航会停在 beforeEach 之后的 chunk 下载阶段
-  await page.route('**/src/features/inventory/StockListView.vue*', async (route) => {
+  await page.route('**/src/features/inventory/stocks/StockListView.vue*', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 800))
     await route.continue()
   })

@@ -1,40 +1,38 @@
 <script setup lang="ts">
 import { RefreshCw, RotateCcw, Search } from '@lucide/vue'
-import { NAlert, NButton, NForm, NFormItem, NPagination, NSelect, NTag } from 'naive-ui'
-import { computed, h, onMounted, reactive, ref } from 'vue'
+import { useBreakpoints } from '@vueuse/core'
+import { NButton, NPagination } from 'naive-ui'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 import { getErrorDetail, type ErrorDetail } from '@/api/error'
 import { inventoryApi } from '@/api/inventory'
 import { skusApi } from '@/api/skus'
 import { warehousesApi } from '@/api/warehouses'
+import AsyncState from '@/components/common/AsyncState.vue'
 import DataTable from '@/components/common/DataTable.vue'
-import { referenceCode, referenceName } from '@/components/common/reference-display'
 import { formatDateTime, type DataTableColumn } from '@/components/common/data-table'
 import PageHeader from '@/components/common/PageHeader.vue'
 import ReferenceSelect from '@/components/common/ReferenceSelect.vue'
 import type { ReferenceSelectOption } from '@/components/common/reference-select'
-import ReservationDetailDrawer from '@/features/inventory/ReservationDetailDrawer.vue'
-import {
-  buildReservationQuery,
-  closeReasonLabel,
-  formatReservationSource,
-  reservationStatusLabel,
-  RESERVATION_PAGE_SIZE,
-  type ReservationFilters,
-} from '@/features/inventory/reservation-list'
+import { referenceCode, referenceName } from '@/components/common/reference-display'
 import {
   REFERENCE_OPTION_PREFETCH,
   searchSkuOptions,
   searchWarehouseOptions,
-} from '@/features/inventory/reference-options'
-import { toSelectOptions } from '@/features/inventory/stock-list'
+} from '@/features/inventory/lib/reference-options'
+import { toSelectOptions } from '@/features/inventory/lib/select-options'
+import {
+  buildStockQuery,
+  STOCK_PAGE_SIZE,
+  type StockFilters,
+} from '@/features/inventory/stocks/stock-list'
 
-import type { Reference, Reservation, ReservationStatus } from '@/types/api'
+import type { StockBalance, StockLayer } from '@/types/api'
 
-const filters = reactive<ReservationFilters>({ warehouseId: null, skuId: null, status: null })
+const filters = reactive<StockFilters>({ warehouseId: null, skuId: null })
 const offset = ref(0)
 const total = ref(0)
-const rows = ref<Reservation[]>([])
+const rows = ref<StockBalance[]>([])
 const loading = ref(false)
 const errorDetail = ref<ErrorDetail | null>(null)
 
@@ -42,104 +40,81 @@ const warehouseOptions = ref<ReferenceSelectOption<number>[]>([])
 const skuOptions = ref<ReferenceSelectOption<number>[]>([])
 const optionsError = ref('')
 
-const statusOptions: Array<{ label: string; value: ReservationStatus }> = [
-  { label: '预留中', value: 'active' },
-  { label: '已关闭', value: 'closed' },
-]
-
 const detailOpen = ref(false)
-/** 当前抽屉对应的预留单 ID，详情加载与重试由抽屉组件负责 */
-const detailTargetId = ref<number | null>(null)
+const detailLoading = ref(false)
+const detailError = ref<ErrorDetail | null>(null)
+const detail = ref<StockBalance | null>(null)
+/** 保留当前明细对应的行，重试时不需要依赖已加载成功的 detail */
+const detailTarget = ref<{ warehouseId: number; skuId: number } | null>(null)
 
-/**
- * 仓库 / SKU 合并成一列展示。
- *
- * 预留列表列数比库存余额多，拆成「编码 + 名称」两列会把状态与数量挤到横向滚动区；
- * 这里保留「编码 / 名称」的可读性，同时把关键字段留在首屏。
- */
-function referenceLabel(reference: Reference | undefined, fallbackId: number): string {
-  const code = referenceCode(reference, fallbackId)
-  const name = referenceName(reference, fallbackId)
-  return name === code ? code : `${code} / ${name}`
-}
+const breakpoints = useBreakpoints({ mobile: 768 })
+const isMobile = breakpoints.smaller('mobile')
 
-const columns: DataTableColumn<Reservation>[] = [
-  { key: 'id', title: '单号', width: 90, align: 'right' },
-  {
-    key: 'status',
-    title: '状态',
-    width: 100,
-    render: (row) =>
-      h(
-        NTag,
-        {
-          type: row.status === 'active' ? 'warning' : 'default',
-          size: 'small',
-          bordered: false,
-        },
-        { default: () => reservationStatusLabel(row.status) },
-      ),
-    exportValue: (row) => reservationStatusLabel(row.status),
-  },
+const columns: DataTableColumn<StockBalance>[] = [
   {
     key: 'warehouse.code',
-    title: '仓库',
-    width: 210,
+    title: '仓库编码',
+    width: 130,
     // 主数据被软删除后引用可能整体缺失，回退展示 ID 而不是留空
-    render: (row) => referenceLabel(row.warehouse, row.warehouse_id),
-    exportValue: (row) => referenceLabel(row.warehouse, row.warehouse_id),
+    render: (row) => referenceCode(row.warehouse, row.warehouse_id),
+  },
+  {
+    key: 'warehouse.name',
+    title: '仓库名称',
+    width: 160,
+    render: (row) => referenceName(row.warehouse, row.warehouse_id),
   },
   {
     key: 'sku.code',
-    title: 'SKU',
-    width: 230,
-    render: (row) => referenceLabel(row.sku, row.sku_id),
-    exportValue: (row) => referenceLabel(row.sku, row.sku_id),
-  },
-  { key: 'total_qty', title: '预留数量', width: 110, align: 'right' },
-  { key: 'released_qty', title: '已释放', width: 100, align: 'right' },
-  { key: 'consumed_qty', title: '已消耗', width: 100, align: 'right' },
-  { key: 'remaining_qty', title: '剩余', width: 100, align: 'right' },
-  {
-    key: 'close_reason',
-    title: '关闭原因',
-    width: 120,
-    render: (row) => closeReasonLabel(row.close_reason),
-    exportValue: (row) => closeReasonLabel(row.close_reason),
+    title: 'SKU 编码',
+    width: 140,
+    render: (row) => referenceCode(row.sku, row.sku_id),
   },
   {
-    key: 'source_type',
-    title: '来源',
+    key: 'sku.name',
+    title: 'SKU 名称',
     width: 180,
-    render: (row) => formatReservationSource(row),
-    exportValue: (row) => formatReservationSource(row),
+    render: (row) => referenceName(row.sku, row.sku_id),
   },
+  { key: 'on_hand_qty', title: '在库数量', width: 120, align: 'right' },
+  { key: 'reserved_qty', title: '预留数量', width: 120, align: 'right' },
+  { key: 'available_qty', title: '可用数量', width: 120, align: 'right' },
   {
-    key: 'actor_label',
-    title: '操作人',
-    width: 120,
-    render: (row) => row.actor_label || '-',
-    exportValue: (row) => row.actor_label || '-',
-  },
-  {
-    key: 'created_at',
-    title: '创建时间',
+    key: 'updated_at',
+    title: '更新时间',
     width: 170,
-    render: (row) => formatDateTime(row.created_at),
-    exportValue: (row) => formatDateTime(row.created_at, ''),
+    render: (row) => formatDateTime(row.updated_at),
   },
 ]
 
-const page = computed(() => Math.floor(offset.value / RESERVATION_PAGE_SIZE) + 1)
-const pageCount = computed(() => Math.max(1, Math.ceil(total.value / RESERVATION_PAGE_SIZE)))
+const layerColumns: DataTableColumn<StockLayer>[] = [
+  { key: 'id', title: '库存层ID', width: 90, align: 'right' },
+  {
+    key: 'batch_id',
+    title: '批次',
+    width: 110,
+    align: 'right',
+    render: (row) => (row.batch_id === null ? '无批次' : String(row.batch_id)),
+  },
+  {
+    key: 'received_at',
+    title: '入库时间',
+    width: 170,
+    render: (row) => formatDateTime(row.received_at),
+  },
+  { key: 'on_hand_qty', title: '在库数量', width: 110, align: 'right' },
+  { key: 'reserved_qty', title: '预留数量', width: 110, align: 'right' },
+  { key: 'available_qty', title: '可用数量', width: 110, align: 'right' },
+]
+
+const page = computed(() => Math.floor(offset.value / STOCK_PAGE_SIZE) + 1)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / STOCK_PAGE_SIZE)))
 
 async function load() {
   loading.value = true
   errorDetail.value = null
   try {
-    const result = await inventoryApi.listReservations(
-      buildReservationQuery(filters, offset.value, RESERVATION_PAGE_SIZE),
-    )
+    const result = await inventoryApi.list(buildStockQuery(filters, offset.value, STOCK_PAGE_SIZE))
     total.value = result.total
     rows.value = result.items ?? []
 
@@ -147,7 +122,7 @@ async function load() {
     if (rows.value.length === 0 && offset.value > 0) {
       const lastOffset =
         result.total > 0
-          ? Math.max(0, Math.ceil(result.total / RESERVATION_PAGE_SIZE) - 1) * RESERVATION_PAGE_SIZE
+          ? Math.max(0, Math.ceil(result.total / STOCK_PAGE_SIZE) - 1) * STOCK_PAGE_SIZE
           : 0
       if (offset.value > lastOffset) {
         offset.value = lastOffset
@@ -194,21 +169,40 @@ async function search() {
 function reset() {
   filters.warehouseId = null
   filters.skuId = null
-  filters.status = null
   void search()
 }
 
 async function goToPage(targetPage: number) {
   if (loading.value) return
-  const nextOffset = Math.max(0, (targetPage - 1) * RESERVATION_PAGE_SIZE)
+  const nextOffset = Math.max(0, (targetPage - 1) * STOCK_PAGE_SIZE)
   if (nextOffset === offset.value) return
   offset.value = nextOffset
   await load()
 }
 
-function openDetail(row: Reservation) {
-  detailTargetId.value = row.id
+async function openDetail(row: StockBalance) {
   detailOpen.value = true
+  detailError.value = null
+  detail.value = null
+  detailTarget.value = { warehouseId: row.warehouse_id, skuId: row.sku_id }
+  await fetchDetail(row.warehouse_id, row.sku_id)
+}
+
+async function fetchDetail(warehouseId: number, skuId: number) {
+  detailLoading.value = true
+  detailError.value = null
+  try {
+    detail.value = await inventoryApi.get(warehouseId, skuId, { include_layers: true })
+  } catch (error) {
+    detailError.value = getErrorDetail(error)
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function retryDetail() {
+  const target = detailTarget.value
+  if (target) void fetchDetail(target.warehouseId, target.skuId)
 }
 
 onMounted(async () => {
@@ -218,7 +212,7 @@ onMounted(async () => {
 
 <template>
   <main class="page">
-    <PageHeader title="库存预留" :description="`共 ${total} 条 · 第 ${page} / ${pageCount} 页`">
+    <PageHeader title="库存余额" :description="`共 ${total} 条 · 第 ${page} / ${pageCount} 页`">
       <template #actions>
         <NButton :loading="loading" @click="load">
           <template #icon><RefreshCw :size="16" /></template>
@@ -227,7 +221,7 @@ onMounted(async () => {
       </template>
     </PageHeader>
 
-    <section class="reservation-panel panel">
+    <section class="stock-panel panel">
       <NForm inline :show-feedback="false" class="filters" @submit.prevent="search">
         <NFormItem label="仓库">
           <ReferenceSelect
@@ -249,15 +243,6 @@ onMounted(async () => {
             filterable
             clearable
             placeholder="全部 SKU"
-          />
-        </NFormItem>
-        <NFormItem label="状态">
-          <NSelect
-            v-model:value="filters.status"
-            class="filters__select filters__select--status"
-            :options="statusOptions"
-            clearable
-            placeholder="全部状态"
           />
         </NFormItem>
         <div class="filters__actions">
@@ -282,20 +267,20 @@ onMounted(async () => {
         :loading="loading"
         :error="errorDetail?.message ?? ''"
         :error-trace-id="errorDetail?.traceId ?? ''"
-        empty-text="暂无库存预留"
-        export-file-name="库存预留"
+        empty-text="暂无库存数据"
+        export-file-name="库存余额"
         row-clickable
         @retry="load"
         @row-click="openDetail"
       />
 
       <footer class="pager">
-        <span class="pager__hint">共 {{ total }} 条，每页 {{ RESERVATION_PAGE_SIZE }} 条</span>
+        <span class="pager__hint">共 {{ total }} 条，每页 {{ STOCK_PAGE_SIZE }} 条</span>
         <NPagination
           v-if="total > 0"
           :page="page"
           :item-count="total"
-          :page-size="RESERVATION_PAGE_SIZE"
+          :page-size="STOCK_PAGE_SIZE"
           :disabled="loading"
           show-quick-jumper
           @update:page="goToPage"
@@ -305,12 +290,46 @@ onMounted(async () => {
       </footer>
     </section>
 
-    <ReservationDetailDrawer v-model:show="detailOpen" :reservation-id="detailTargetId" />
+    <NDrawer v-model:show="detailOpen" :width="isMobile ? '100%' : 760" placement="right">
+      <NDrawerContent closable>
+        <template #header>
+          <div class="drawer-header">
+            <span>库存层明细</span>
+            <NButton size="small" :loading="detailLoading" @click="retryDetail">
+              <template #icon><RefreshCw :size="14" /></template>
+              刷新
+            </NButton>
+          </div>
+        </template>
+        <AsyncState
+          :loading="detailLoading"
+          :error="detailError?.message ?? ''"
+          :error-trace-id="detailError?.traceId ?? ''"
+          :empty="!detailLoading && !detailError && (detail?.layers?.length ?? 0) === 0"
+          empty-text="该库存暂无层明细"
+          @retry="retryDetail"
+        >
+          <div v-if="detail" class="detail-summary">
+            <span>仓库：{{ referenceCode(detail.warehouse, detail.warehouse_id) }}</span>
+            <span>SKU：{{ referenceCode(detail.sku, detail.sku_id) }}</span>
+            <span>在库：{{ detail.on_hand_qty }}</span>
+            <span>预留：{{ detail.reserved_qty }}</span>
+            <span>可用：{{ detail.available_qty }}</span>
+          </div>
+          <DataTable
+            :columns="layerColumns"
+            :rows="detail?.layers ?? []"
+            empty-text="该库存暂无层明细"
+            export-file-name="库存层明细"
+          />
+        </AsyncState>
+      </NDrawerContent>
+    </NDrawer>
   </main>
 </template>
 
 <style scoped>
-.reservation-panel {
+.stock-panel {
   min-width: 0;
 }
 
@@ -323,11 +342,7 @@ onMounted(async () => {
 }
 
 .filters__select {
-  width: 200px;
-}
-
-.filters__select--status {
-  width: 150px;
+  width: 220px;
 }
 
 .filters__actions {
@@ -358,6 +373,23 @@ onMounted(async () => {
   justify-content: flex-end;
 }
 
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 6px;
+}
+
+.detail-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 12px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
 @media (max-width: 680px) {
   .filters {
     align-items: stretch;
@@ -365,8 +397,7 @@ onMounted(async () => {
   }
 
   .filters :deep(.n-form-item),
-  .filters__select,
-  .filters__select--status {
+  .filters__select {
     width: 100%;
   }
 

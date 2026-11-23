@@ -18,13 +18,13 @@ import {
   MOVEMENT_PAGE_SIZE,
   operationTypeLabel,
   operationTypeTagType,
-} from '@/features/inventory/movement-list'
-import { reservationQuantitySegments } from '@/features/inventory/reservation-quantity'
+} from '@/features/inventory/movements/movement-list'
+import { reservationQuantitySegments } from '@/features/inventory/reservations/reservation-quantity'
 import {
   closeReasonLabel,
   formatReservationSource,
   reservationStatusLabel,
-} from '@/features/inventory/reservation-list'
+} from '@/features/inventory/reservations/reservation-list'
 
 import type { InventoryMovement, Reservation, ReservationItem } from '@/types/api'
 

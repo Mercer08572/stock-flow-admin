@@ -1,7 +1,8 @@
 /**
- * 库存余额列表的纯逻辑：查询参数组装与下拉选项。
+ * 库存余额列表的纯逻辑：查询参数组装。
  *
- * 引用快照的渲染见 `@/components/common/reference-display`。
+ * 下拉选项见 `@/features/inventory/lib/select-options`；引用快照的渲染见
+ * `@/components/common/reference-display`。
  *
  * 契约约束（均已在后端核对）：
  * 1. `GET /inventory/stocks` 只接受 `warehouse_id` / `sku_id` / `limit` / `offset`；
@@ -10,8 +11,6 @@
  * 3. `StockBalance.warehouse` / `sku` 是 `*Reference` + `omitempty`：主数据被软删除后
  *    字段可能整体缺失，也可能带着 `deleted: true` 保留。渲染交接给 `reference-display`。
  */
-
-import type { ReferenceSelectOption } from '@/components/common/reference-select'
 
 /** 后端 `MaxListLimit` */
 export const STOCK_PAGE_SIZE = 100
@@ -40,21 +39,4 @@ export function buildStockQuery(
     limit,
     offset: Math.max(0, offset),
   }
-}
-
-/**
- * 下拉选项：标签同时给出编码与名称，避免用户只看得到数字 ID。
- *
- * `code` / `name` 单独保留一份，供 `ReferenceSelect` 两行展示；
- * `label` 仍是「编码 - 名称」，它同时承担 `filterable` 的匹配文本。
- */
-export function toSelectOptions(
-  items: Array<{ id: number; code: string; name: string }>,
-): ReferenceSelectOption<number>[] {
-  return items.map((item) => ({
-    label: `${item.code} - ${item.name}`,
-    value: item.id,
-    code: item.code,
-    name: item.name,
-  }))
 }

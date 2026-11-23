@@ -28,8 +28,11 @@ import {
   batchStatusOptions,
   buildBatchQuery,
   type BatchFilters,
-} from '@/features/inventory/batch'
-import { REFERENCE_OPTION_PREFETCH, searchSkuOptions } from '@/features/inventory/reference-options'
+} from '@/features/inventory/batches/batch'
+import {
+  REFERENCE_OPTION_PREFETCH,
+  searchSkuOptions,
+} from '@/features/inventory/lib/reference-options'
 
 import type { CreateBatchInput, InventoryBatch, UpdateBatchInput } from '@/types/api'
 

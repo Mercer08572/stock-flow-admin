@@ -52,32 +52,32 @@ export const router = createRouter({
         {
           path: 'inventory/reservations',
           name: 'inventory-reservations',
-          component: () => import('@/features/inventory/ReservationListView.vue'),
+          component: () => import('@/features/inventory/reservations/ReservationListView.vue'),
           meta: { title: '库存预留' },
         },
         {
           path: 'inventory/stocks',
           name: 'inventory-stocks',
-          component: () => import('@/features/inventory/StockListView.vue'),
+          component: () => import('@/features/inventory/stocks/StockListView.vue'),
           meta: { title: '库存余额' },
         },
         {
           path: 'inventory/movements',
           name: 'inventory-movements',
-          component: () => import('@/features/inventory/MovementListView.vue'),
+          component: () => import('@/features/inventory/movements/MovementListView.vue'),
           meta: { title: '库存流水' },
         },
         {
           path: 'inventory/batches',
           name: 'inventory-batches',
-          component: () => import('@/features/inventory/BatchListView.vue'),
+          component: () => import('@/features/inventory/batches/BatchListView.vue'),
           meta: { title: '库存批次' },
         },
         {
           // 静态路径优先于参数段：`inventory/batches` 仍命中上面的列表页
           path: 'inventory/batches/:id(\\d+)',
           name: 'inventory-batch-detail',
-          component: () => import('@/features/inventory/BatchDetailView.vue'),
+          component: () => import('@/features/inventory/batches/BatchDetailView.vue'),
           meta: { title: '批次详情' },
         },
         {

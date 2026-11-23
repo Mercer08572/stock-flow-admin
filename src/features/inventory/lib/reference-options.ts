@@ -14,7 +14,7 @@ import type {
   ReferenceSelectPage,
   ReferenceSelectQuery,
 } from '@/components/common/reference-select'
-import { toSelectOptions } from '@/features/inventory/stock-list'
+import { toSelectOptions } from '@/features/inventory/lib/select-options'
 
 /**
  * 首屏预取的条数。

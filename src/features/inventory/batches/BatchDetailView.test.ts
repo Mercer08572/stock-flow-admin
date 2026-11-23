@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/api/error'
 import { batchesApi } from '@/api/batches'
-import BatchDetailView from '@/features/inventory/BatchDetailView.vue'
+import BatchDetailView from '@/features/inventory/batches/BatchDetailView.vue'
 import { naiveTestPlugin } from '@/test/naive'
 
 const BATCH_ID = 3

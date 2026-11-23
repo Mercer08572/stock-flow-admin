@@ -26,7 +26,13 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import ReferenceSelect from '@/components/common/ReferenceSelect.vue'
 import type { ReferenceSelectOption } from '@/components/common/reference-select'
 import { referenceLabel } from '@/components/common/reference-display'
-import ReservationDetailDrawer from '@/features/inventory/ReservationDetailDrawer.vue'
+import ReservationDetailDrawer from '@/features/inventory/components/ReservationDetailDrawer.vue'
+import {
+  REFERENCE_OPTION_PREFETCH,
+  searchSkuOptions,
+  searchWarehouseOptions,
+} from '@/features/inventory/lib/reference-options'
+import { toSelectOptions } from '@/features/inventory/lib/select-options'
 import {
   buildMovementQuery,
   formatMovementActor,
@@ -38,13 +44,7 @@ import {
   operationTypeTagType,
   OPERATION_TYPE_OPTIONS,
   type MovementFilters,
-} from '@/features/inventory/movement-list'
-import {
-  REFERENCE_OPTION_PREFETCH,
-  searchSkuOptions,
-  searchWarehouseOptions,
-} from '@/features/inventory/reference-options'
-import { toSelectOptions } from '@/features/inventory/stock-list'
+} from '@/features/inventory/movements/movement-list'
 
 import type { InventoryMovement } from '@/types/api'
 

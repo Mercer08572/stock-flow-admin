@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api/error'
 import { batchesApi } from '@/api/batches'
 import { skusApi } from '@/api/skus'
-import BatchListView from '@/features/inventory/BatchListView.vue'
+import BatchListView from '@/features/inventory/batches/BatchListView.vue'
 import { naiveTestPlugin } from '@/test/naive'
 
 const messageError = vi.fn()

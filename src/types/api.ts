@@ -276,7 +276,7 @@ export interface Reservation {
  * 库存流水的操作类型（`inventory_movements.operation_type`）。
  *
  * 取值受后端 CHECK 约束与 `normalizeListMovementsFilter` 双重限制，
- * 前端的中文映射以这份联合类型为准（见 `features/inventory/movement-list.ts`）。
+ * 前端的中文映射以这份联合类型为准（见 `features/inventory/movements/movement-list.ts`）。
  */
 export type MovementOperationType =
   'increase' | 'reserve' | 'release_reserved' | 'decrease_available' | 'decrease_reserved'
